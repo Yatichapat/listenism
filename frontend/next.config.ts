@@ -6,7 +6,9 @@ import type { NextConfig } from "next";
 loadEnvConfig(path.join(process.cwd(), ".."));
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  turbopack: {
+    root: process.cwd(),
+  },
 };
 
 export default nextConfig;

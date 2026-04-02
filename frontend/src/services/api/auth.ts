@@ -1,9 +1,13 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const AUTH_CHANGED_EVENT = "listenism-auth-changed";
 
 export type UserPublic = {
   id: number;
   email: string;
   display_name: string;
+  role?: string;
+  like_count?: number;
+  follower_count?: number;
 };
 
 export type AuthResponse = {
@@ -15,6 +19,7 @@ export type RegisterPayload = {
   email: string;
   password: string;
   display_name: string;
+  role?: string;
 };
 
 export type LoginPayload = {
@@ -73,6 +78,7 @@ export async function me(token: string): Promise<UserPublic> {
 export function setAccessToken(token: string): void {
   if (typeof window !== "undefined") {
     localStorage.setItem("listenism_access_token", token);
+    window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
   }
 }
 
@@ -86,5 +92,8 @@ export function getAccessToken(): string | null {
 export function clearAccessToken(): void {
   if (typeof window !== "undefined") {
     localStorage.removeItem("listenism_access_token");
+    window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
   }
 }
+
+export { AUTH_CHANGED_EVENT };

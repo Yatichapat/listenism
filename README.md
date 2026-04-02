@@ -165,7 +165,7 @@ cd listenism
 cp .env.example .env
 ```
 
-Edit `.env` and fill in the required values:
+Edit `.env` and fill in the required values. The example file now includes settings for both local development and Docker Compose:
 
 ```env
 # Database
@@ -220,7 +220,7 @@ pip install -r requirements.txt
 
 ### Option A — Docker Compose (recommended)
 
-Runs all services (backend, frontend, ml, postgres, redis, minio) with a single command:
+Runs all services (backend, frontend, ml, postgres, redis, minio) with a single command from the repository root:
 
 ```bash
 docker compose up --build
@@ -234,7 +234,12 @@ Services will be available at:
 | Backend API (FastAPI) | http://localhost:8000 |
 | API Docs (Swagger) | http://localhost:8000/docs |
 | ML Service | http://localhost:8001 |
+| PostgreSQL | localhost:5432 |
+| Redis | localhost:6379 |
+| MinIO API | http://localhost:9000 |
 | MinIO Console | http://localhost:9001 |
+
+The backend container runs database migrations automatically on startup. MinIO handles song audio and cover uploads.
 
 ### Option B — Run each service separately
 

@@ -31,4 +31,12 @@ class AuthRepository:
         self.db.add(user)
         self.db.commit()
         self.db.refresh(user)
-        return UserPublic(id=user.id, email=user.email, display_name=user.display_name)
+        role_str = user.role.value if isinstance(user.role, UserRole) else str(user.role)
+        return UserPublic(
+            id=user.id,
+            email=user.email,
+            display_name=user.display_name,
+            role=role_str,
+            like_count=0,
+            follower_count=0,
+        )

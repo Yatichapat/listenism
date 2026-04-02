@@ -5,6 +5,7 @@ class RegisterRequest(BaseModel):
 	email: EmailStr
 	password: str
 	display_name: str
+	role: str = "listener"  # listener, artist, or admin
 
 
 class LoginRequest(BaseModel):
@@ -21,3 +22,6 @@ class UserPublic(BaseModel):
 	id: int
 	email: EmailStr
 	display_name: str
+	role: str = "listener"
+	like_count: int = 0
+	follower_count: int = 0

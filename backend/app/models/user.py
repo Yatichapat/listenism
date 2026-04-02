@@ -24,6 +24,7 @@ class User(Base):
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
+    albums: Mapped[list["Album"]] = relationship("Album", back_populates="artist", cascade="all, delete-orphan")  # noqa: F821
     songs: Mapped[list["Song"]] = relationship("Song", back_populates="artist", cascade="all, delete-orphan")  # noqa: F821
     likes: Mapped[list["Like"]] = relationship("Like", back_populates="user", cascade="all, delete-orphan")  # noqa: F821
     comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="user", cascade="all, delete-orphan")  # noqa: F821

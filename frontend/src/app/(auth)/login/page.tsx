@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { login, setAccessToken } from "@/services/api/auth";
 
 export default function LoginPage() {
@@ -26,10 +25,6 @@ export default function LoginPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleGoogleSignIn = async () => {
-    await signIn("google", { callbackUrl: "/" });
   };
 
   return (
@@ -76,16 +71,6 @@ export default function LoginPage() {
           className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition duration-200"
         >
           {isSubmitting ? "Signing in..." : "Login"}
-        </button>
-
-        <div className="my-4 h-px bg-gray-200" />
-
-        <button
-          type="button"
-          onClick={handleGoogleSignIn}
-          className="w-full border border-gray-300 bg-white text-gray-700 py-2 rounded hover:bg-gray-50 transition duration-200"
-        >
-          Continue with Google
         </button>
       </form>
     </div>

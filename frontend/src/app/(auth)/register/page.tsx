@@ -10,6 +10,7 @@ export default function RegisterPage() {
 	const [email, setEmail] = useState("");
 	const [displayName, setDisplayName] = useState("");
 	const [password, setPassword] = useState("");
+	const [role, setRole] = useState("listener");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const router = useRouter();
@@ -24,6 +25,7 @@ export default function RegisterPage() {
 				email,
 				password,
 				display_name: displayName,
+				role,
 			});
 			router.push("/login");
 		} catch (err) {
@@ -71,7 +73,7 @@ export default function RegisterPage() {
 						className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
 					/>
 				</div>
-				<div className="mb-6">
+				<div className="mb-4">
 					<label className="block text-gray-700 mb-2" htmlFor="password">
 						Password
 					</label>
@@ -83,6 +85,21 @@ export default function RegisterPage() {
 						required
 						className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
 					/>
+				</div>
+				<div className="mb-6">
+					<label className="block text-gray-700 mb-2" htmlFor="role">
+						Role
+					</label>
+					<select
+						id="role"
+						value={role}
+						onChange={(e) => setRole(e.target.value)}
+						required
+						className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+					>
+						<option value="listener">Listener</option>
+						<option value="artist">Artist</option>
+					</select>
 				</div>
 				<button
 					type="submit"

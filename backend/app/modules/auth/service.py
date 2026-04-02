@@ -4,6 +4,7 @@ from jose import jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
+from app.models.user import UserRole
 from app.modules.auth.repository import AuthRepository
 from app.modules.auth.schemas import AuthResponse, LoginRequest, RegisterRequest, UserPublic
 from app.shared.config import settings
@@ -20,16 +21,32 @@ class AuthService:
         user = self.repo.get_by_id(user_id)
         if user is None:
             raise AppException("User not found", status_code=404)
-        return UserPublic(id=user.id, email=user.email, display_name=user.display_name)
+        like_count = len(user.likes) if hasattr(user, 'likes') else 0
+        follower_count = len(user.followers) if hasattr(user, 'followers') else 0
+        # Convert enum to string properly
+        role_str = user.role.value if isinstance(user.role, UserRole) else str(user.role)
+        return UserPublic(
+            id=user.id,
+            email=user.email,
+            display_name=user.display_name,
+            role=role_str,
+            like_count=like_count,
+            follower_count=follower_count,
+        )
 
     def register(self, payload: RegisterRequest) -> UserPublic:
         if self.repo.find_by_email(payload.email):
             raise AppException("Email already exists", status_code=409)
         password_hash = pwd_context.hash(payload.password)
+        try:
+            role = UserRole(payload.role)
+        except ValueError:
+            raise AppException(f"Invalid role: {payload.role}", status_code=400)
         return self.repo.create_user(
             email=payload.email,
             display_name=payload.display_name,
             password_hash=password_hash,
+            role=role,
         )
 
     def login(self, payload: LoginRequest) -> AuthResponse:
