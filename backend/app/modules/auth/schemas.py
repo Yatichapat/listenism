@@ -15,7 +15,12 @@ class LoginRequest(BaseModel):
 
 class AuthResponse(BaseModel):
 	access_token: str
+	refresh_token: str
 	token_type: str = "bearer"
+
+
+class RefreshRequest(BaseModel):
+	refresh_token: str
 
 
 class UserPublic(BaseModel):
@@ -25,3 +30,16 @@ class UserPublic(BaseModel):
 	role: str = "listener"
 	like_count: int = 0
 	follower_count: int = 0
+
+
+class AdminUserItem(BaseModel):
+	id: int
+	email: str
+	display_name: str
+	role: str = "listener"
+	like_count: int = 0
+	follower_count: int = 0
+
+
+class UserListResponse(BaseModel):
+	items: list[AdminUserItem]

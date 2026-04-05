@@ -306,10 +306,6 @@ npm run test
 ![Upload Song](./screenshots/upload.png)
 *Artists upload original music with metadata — title, genre, cover art.*
 
-### Admin Dashboard
-![Admin Dashboard](./screenshots/admin.png)
-*Admin panel for user management and content moderation.*
-
 ---
 
 ## License

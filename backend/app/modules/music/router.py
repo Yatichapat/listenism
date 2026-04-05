@@ -1,10 +1,12 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from app.infrastructure.database import get_db
 from app.modules.music.schemas import (
     SongCreateRequest, SongListResponse, SongResponse,
-    AlbumListResponse, ArtistListResponse
+    AlbumListResponse, AlbumDetailResponse, ArtistListResponse
 )
 from app.modules.music.service import MusicService
 from app.shared.deps import current_user_id
@@ -46,6 +48,11 @@ def list_my_songs(
 def list_newest_albums(limit: int = Query(10), db: Session = Depends(get_db)) -> AlbumListResponse:
     return MusicService(db).list_newest_albums(limit)
 
+
+@router.get("/albums/{album_id}", response_model=AlbumDetailResponse)
+def get_album_detail(album_id: int, db: Session = Depends(get_db)) -> AlbumDetailResponse:
+    return MusicService(db).get_album_detail(album_id)
+
 @router.get("/artists/hot", response_model=ArtistListResponse)
 def list_hot_artists(limit: int = Query(10), db: Session = Depends(get_db)) -> ArtistListResponse:
     return MusicService(db).list_hot_artists(limit)
@@ -64,40 +71,29 @@ def create_song(
     return MusicService(db).create_song(payload, artist_id=artist_id)
 
 
-@router.post("/songs/upload", response_model=SongResponse)
+@router.post("/songs/upload", response_model=SongListResponse)
 async def upload_song(
-    title: str = Form(...),
+    upload_type: Literal["single", "album"] = Form("single"),
+    title: str | None = Form(None),
     genre: str | None = Form(None),
     album_title: str | None = Form(None),
-    audio_file: UploadFile = File(...),
+    track_titles: list[str] | None = Form(None),
+    audio_file: UploadFile | None = File(None),
+    audio_files: list[UploadFile] | None = File(None),
     cover_file: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     artist_id: int = Depends(current_user_id),
-) -> SongResponse:
-    if not title.strip():
-        raise AppException("Song title is required", status_code=400)
-
-    audio_content = await audio_file.read()
-    if not audio_content:
-        raise AppException("Audio file is empty", status_code=400)
-
-    cover_content: bytes | None = None
-    if cover_file is not None:
-        cover_content = await cover_file.read()
-        if not cover_content:
-            cover_content = None
-
-    return MusicService(db).create_song_with_files(
+) -> SongListResponse:
+    return MusicService(db).create_uploaded_songs(
+        upload_type=upload_type,
         title=title,
         genre=genre,
         artist_id=artist_id,
-        audio_bytes=audio_content,
-        audio_filename=audio_file.filename or "audio.bin",
-        audio_content_type=audio_file.content_type,
+        track_titles=track_titles,
+        audio_file=audio_file,
+        audio_files=audio_files,
         album_title=album_title,
-        cover_bytes=cover_content,
-        cover_filename=cover_file.filename if cover_file else None,
-        cover_content_type=cover_file.content_type if cover_file else None,
+        cover_file=cover_file,
     )
 
 
@@ -108,3 +104,12 @@ def delete_my_song(
     artist_id: int = Depends(current_user_id),
 ) -> None:
     MusicService(db).delete_my_song(artist_id=artist_id, song_id=song_id)
+
+
+@router.delete("/songs/admin/{song_id}", status_code=204)
+def delete_song_as_admin(
+    song_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> None:
+    MusicService(db).delete_song_as_admin(admin_id=user_id, song_id=song_id)

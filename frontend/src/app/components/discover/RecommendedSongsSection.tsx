@@ -59,6 +59,7 @@ export default function RecommendedSongsSection() {
           artistName={song.artist_name}
           genre={song.genre}
           audioUrl={song.audio_url}
+          coverUrl={song.cover_url}
           viewCount={song.view_count ?? 300 + (song.id % 7) * 337}
           likeCount={song.like_count ?? 30 + (song.id % 5) * 41}
         />

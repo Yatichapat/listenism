@@ -33,6 +33,10 @@ def current_user_id(
 	if subject is None:
 		raise AppException("Invalid token payload", status_code=401)
 
+	token_type = payload.get("type")
+	if token_type not in (None, "access"):
+		raise AppException("Invalid token type", status_code=401)
+
 	try:
 		user_id = int(subject)
 	except ValueError as exc:

@@ -1,21 +1,26 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { getAccessToken, me } from "@/services/api/auth";
-import { deleteMySong, listMySongs } from "@/services/api/music";
+import { deleteMySong, listMySongs, uploadArtistSongs, type UploadMode } from "@/services/api/music";
 import { type Song } from "@/types/songs";
+
+type AlbumTrackDraft = {
+  file: File;
+  title: string;
+};
 
 const GENRES = [
   "Pop", "Rock", "Hip-Hop", "Jazz", "Classical", "Electronic", "R&B", "Country", "Other"
 ];
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
 const UploadSongPage = () => {
+  const [uploadMode, setUploadMode] = useState<UploadMode>("single");
   const [title, setTitle] = useState("");
   const [artistName, setArtistName] = useState("");
-  const [album, setAlbum] = useState("");
-  const [albumArt, setAlbumArt] = useState<File | null>(null);
-  const [audio, setAudio] = useState<File | null>(null);
+  const [albumTitle, setAlbumTitle] = useState("");
+  const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [singleAudio, setSingleAudio] = useState<File | null>(null);
+  const [albumTracks, setAlbumTracks] = useState<AlbumTrackDraft[]>([]);
   const [genre, setGenre] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [mySongs, setMySongs] = useState<Song[]>([]);
@@ -23,6 +28,7 @@ const UploadSongPage = () => {
   const [deletingSongId, setDeletingSongId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
 
   const loadArtistData = async () => {
@@ -50,15 +56,19 @@ const UploadSongPage = () => {
     void loadArtistData();
   }, []);
 
+  const resetForm = () => {
+    setTitle("");
+    setAlbumTitle("");
+    setGenre("");
+    setCoverImage(null);
+    setSingleAudio(null);
+    setAlbumTracks([]);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !genre) {
-      setError("Please fill in song title and genre.");
-      return;
-    }
-
-    if (!audio) {
-      setError("Please select an audio file to upload.");
+    if (!genre) {
+      setError("Please select a genre.");
       return;
     }
 
@@ -68,50 +78,68 @@ const UploadSongPage = () => {
       return;
     }
 
+    if (!coverImage) {
+      setError(uploadMode === "album" ? "Please select an album cover image." : "Please select a cover image.");
+      return;
+    }
+
+    if (uploadMode === "single") {
+      if (!title.trim()) {
+        setError("Please fill in the song title.");
+        return;
+      }
+      if (!singleAudio) {
+        setError("Please select an audio file to upload.");
+        return;
+      }
+    } else {
+      if (!albumTitle.trim()) {
+        setError("Please fill in the album title.");
+        return;
+      }
+      if (albumTracks.length === 0) {
+        setError("Please select at least one audio file for the album.");
+        return;
+      }
+      if (albumTracks.some((track) => !track.title.trim())) {
+        setError("Please fill in a title for every album track.");
+        return;
+      }
+    }
+
     setLoading(true);
-    setError('');
+    setError("");
     setSuccess(false);
+    setSuccessMessage("");
     try {
       const formData = new FormData();
-      formData.append('title', title.trim());
-      formData.append('genre', genre);
-      if (album.trim()) {
-        formData.append('album_title', album.trim());
-      } else if (albumArt) {
-        formData.append('album_title', title.trim());
-      }
-      formData.append('audio_file', audio);
-      if (albumArt) {
-        formData.append('cover_file', albumArt);
-      }
+      formData.append("upload_type", uploadMode);
+      formData.append("genre", genre);
+      formData.append("cover_file", coverImage);
 
-      const res = await fetch(`${API_BASE}/api/v1/music/songs/upload`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!res.ok) {
-        let detail = `Upload failed with status ${res.status}`;
-        try {
-          const data = await res.json();
-          if (data?.detail) {
-            detail = String(data.detail);
-          }
-        } catch {
-          // Keep fallback detail if response body is not JSON.
+      if (uploadMode === "single") {
+        formData.append("title", title.trim());
+        if (albumTitle.trim()) {
+          formData.append("album_title", albumTitle.trim());
         }
-        throw new Error(detail);
+        if (singleAudio) {
+          formData.append("audio_file", singleAudio);
+        }
+      } else {
+        formData.append("album_title", albumTitle.trim());
+        albumTracks.forEach((track) => {
+          formData.append("audio_files", track.file);
+          formData.append("track_titles", track.title.trim());
+        });
       }
+
+      const uploadedSongs = await uploadArtistSongs(token, formData);
 
       setSuccess(true);
-      setTitle("");
-      setAlbum("");
-      setGenre("");
-      setAlbumArt(null);
-      setAudio(null);
+      setSuccessMessage(
+        `Upload successful! ${uploadedSongs.length} song${uploadedSongs.length > 1 ? "s" : ""} added.`,
+      );
+      resetForm();
       setShowAddForm(false);
       await loadArtistData();
     } catch (err: unknown) {
@@ -131,6 +159,7 @@ const UploadSongPage = () => {
     setDeletingSongId(songId);
     setError("");
     setSuccess(false);
+    setSuccessMessage("");
     try {
       await deleteMySong(token, songId);
       setMySongs((prev) => prev.filter((song) => song.id !== songId));
@@ -153,6 +182,7 @@ const UploadSongPage = () => {
           onClick={() => {
             setShowAddForm((prev) => !prev);
             setSuccess(false);
+            setSuccessMessage("");
             setError("");
           }}
           className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
@@ -165,24 +195,52 @@ const UploadSongPage = () => {
         <form onSubmit={handleSubmit} className="mb-8 space-y-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Upload Song</h2>
           <div>
-            <label className="mb-1 block font-medium">Song Title</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+            <label className="mb-1 block font-medium">Upload Type</label>
+            <select
+              value={uploadMode}
+              onChange={(e) => {
+                const nextMode = e.target.value as UploadMode;
+                setUploadMode(nextMode);
+                setSuccess(false);
+                setSuccessMessage("");
+                setError("");
+                setTitle("");
+                setAlbumTitle("");
+                setCoverImage(null);
+                setSingleAudio(null);
+                setAlbumTracks([]);
+              }}
               className="w-full rounded border px-3 py-2"
-              required
-            />
+            >
+              <option value="single">Single</option>
+              <option value="album">Album</option>
+            </select>
           </div>
-          <div>
-            <label className="mb-1 block font-medium">Album Name</label>
-            <input
-              type="text"
-              value={album}
-              onChange={(e) => setAlbum(e.target.value)}
-              className="w-full rounded border px-3 py-2"
-            />
-          </div>
+
+          {uploadMode === "single" ? (
+            <div>
+              <label className="mb-1 block font-medium">Song Title</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full rounded border px-3 py-2"
+                required
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="mb-1 block font-medium">Album Title</label>
+              <input
+                type="text"
+                value={albumTitle}
+                onChange={(e) => setAlbumTitle(e.target.value)}
+                className="w-full rounded border px-3 py-2"
+                required
+              />
+            </div>
+          )}
+
           <div>
             <label className="mb-1 block font-medium">Genre</label>
             <select
@@ -197,28 +255,83 @@ const UploadSongPage = () => {
               ))}
             </select>
           </div>
+
           <div>
-            <label className="mb-1 block font-medium">Album Picture</label>
+            <label className="mb-1 block font-medium">{uploadMode === "album" ? "Album Cover" : "Song Cover"}</label>
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => setAlbumArt(e.target.files?.[0] || null)}
+              onChange={(e) => setCoverImage(e.target.files?.[0] || null)}
               className="w-full"
             />
-            <p className="mt-1 text-xs text-gray-500">If you choose a cover without album name, the song title will be used as the album name.</p>
+            <p className="mt-1 text-xs text-gray-500">
+              {uploadMode === "album"
+                ? "Use one cover image for the full album."
+                : "Single songs must include a cover image."}
+            </p>
           </div>
+
           <div>
-            <label className="mb-1 block font-medium">Audio File</label>
-            <input
-              type="file"
-              accept="audio/*"
-              onChange={(e) => setAudio(e.target.files?.[0] || null)}
-              className="w-full"
-            />
+            <label className="mb-1 block font-medium">{uploadMode === "album" ? "Audio Files" : "Audio File"}</label>
+            {uploadMode === "album" ? (
+              <div className="space-y-3">
+                <input
+                  type="file"
+                  accept="audio/*"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setAlbumTracks(
+                      files.map((file) => ({
+                        file,
+                        title: file.name.replace(/\.[^.]+$/, ""),
+                      })),
+                    );
+                  }}
+                  className="w-full"
+                />
+
+                {albumTracks.length > 0 && (
+                  <div className="space-y-3 rounded border border-gray-200 bg-gray-50 p-3">
+                    <p className="text-sm font-medium text-gray-700">Track titles</p>
+                    {albumTracks.map((track, index) => (
+                      <div key={`${track.file.name}-${index}`} className="grid gap-2 md:grid-cols-[1fr_2fr] md:items-center">
+                        <div className="truncate text-sm text-gray-600">{track.file.name}</div>
+                        <input
+                          type="text"
+                          value={track.title}
+                          onChange={(e) => {
+                            const nextTitle = e.target.value;
+                            setAlbumTracks((prev) =>
+                              prev.map((item, itemIndex) =>
+                                itemIndex === index ? { ...item, title: nextTitle } : item,
+                              ),
+                            );
+                          }}
+                          className="w-full rounded border px-3 py-2"
+                          placeholder="Track title"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <input
+                type="file"
+                accept="audio/*"
+                onChange={(e) => setSingleAudio(e.target.files?.[0] || null)}
+                className="w-full"
+              />
+            )}
           </div>
+
           <p className="text-xs text-gray-500">
-            Audio file is required. Album cover is optional and will be attached to the album when provided.
+            {uploadMode === "album"
+              ? "Album uploads let you choose many audio files with one shared cover image. You can edit each track title before uploading."
+              : "Single uploads require one audio file and one cover image."}
           </p>
+
           <button
             type="submit"
             className="rounded bg-blue-600 px-6 py-2 text-white disabled:opacity-50"
@@ -230,7 +343,7 @@ const UploadSongPage = () => {
       )}
 
       {error && <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-red-600">{error}</div>}
-      {success && <div className="mb-4 rounded border border-green-200 bg-green-50 p-3 text-green-700">Upload successful!</div>}
+      {success && <div className="mb-4 rounded border border-green-200 bg-green-50 p-3 text-green-700">{successMessage || "Upload successful!"}</div>}
 
       <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">

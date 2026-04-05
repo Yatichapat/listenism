@@ -1,14 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { getAccessToken } from "@/services/api/auth";
+import { likeSong, reportSong, unlikeSong } from "@/services/api/social";
 import { type SongProps } from "@/types/songs";
 
+const FALLBACK_COVER = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><rect width="400" height="400" rx="36" fill="#0f172a"/><circle cx="200" cy="152" r="64" fill="rgba(255,255,255,0.08)"/><rect x="100" y="250" width="200" height="18" rx="9" fill="#e2e8f0" fill-opacity="0.9"/><rect x="128" y="282" width="144" height="12" rx="6" fill="#e2e8f0" fill-opacity="0.55"/></svg>`,
+)} `;
 
 
-export default function Song({ id, title, artistName, genre, audioUrl, viewCount = 0, likeCount = 0 }: SongProps) {
+
+export default function Song({ id, title, artistName, genre, audioUrl, coverUrl, viewCount = 0, likeCount = 0 }: SongProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
+  const [liking, setLiking] = useState(false);
+  const [reporting, setReporting] = useState(false);
+  const [reported, setReported] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
 
   const displayedLikeCount = likeCount + (isLiked ? 1 : 0);
 
@@ -53,15 +65,58 @@ export default function Song({ id, title, artistName, genre, audioUrl, viewCount
     setIsPlaying(false);
   }
 
-  const coverUrl = `https://picsum.photos/seed/song${id}/300/300`;
+  async function onReportSong() {
+    const token = getAccessToken();
+    if (!token || reporting || reported) {
+      return;
+    }
+
+    setReporting(true);
+    try {
+      await reportSong(token, id, "Inappropriate or harmful song content");
+      setReported(true);
+    } catch {
+      // Keep UI simple for now; moderation handling relies on backend reports.
+    } finally {
+      setReporting(false);
+    }
+  }
+
+  async function onToggleLike() {
+    const token = getAccessToken();
+    if (!token || liking) {
+      const redirectPath = pathname || "/";
+      router.push(`/login?redirect=${encodeURIComponent(redirectPath)}`);
+      return;
+    }
+
+    const nextLiked = !isLiked;
+    setIsLiked(nextLiked);
+    setLiking(true);
+
+    try {
+      if (nextLiked) {
+        await likeSong(token, id);
+      } else {
+        await unlikeSong(token, id);
+      }
+    } catch {
+      setIsLiked(!nextLiked);
+    } finally {
+      setLiking(false);
+    }
+  }
 
   return (
     <article className="group flex w-48 shrink-0 snap-start flex-col gap-3 transition-transform hover:-translate-y-1">
       <div className="relative aspect-square w-full overflow-hidden rounded-xl shadow-md transition-shadow group-hover:shadow-xl group-hover:shadow-indigo-500/20">
         <img
-          src={coverUrl}
+          src={coverUrl || FALLBACK_COVER}
           alt={title}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          onError={(event) => {
+            event.currentTarget.src = FALLBACK_COVER;
+          }}
         />
         <div className={`absolute inset-0 bg-black/40 ${isPlaying ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300 group-hover:opacity-100 flex items-center justify-center backdrop-blur-[2px]`}>
           <button 
@@ -84,11 +139,24 @@ export default function Song({ id, title, artistName, genre, audioUrl, viewCount
         <h3 className="truncate font-semibold text-slate-900 dark:text-white text-base">{title}</h3>
         <div className="flex justify-between items-center mt-0.5">
            <p className="truncate text-sm text-slate-500 dark:text-slate-400">{artistName}</p>
-           <button onClick={() => setIsLiked(!isLiked)} className={`transition-colors ${isLiked ? "text-rose-500 drop-shadow-md cursor-pointer" : "text-slate-400 hover:text-slate-300 dark:text-slate-500 dark:hover:text-slate-400 cursor-pointer"}`}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                <path d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0 1 12 5.052 5.5 5.5 0 0 1 16.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z" />
-              </svg>
-           </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onReportSong}
+              disabled={reporting || reported}
+              className="rounded-md border border-amber-200/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-500/40 dark:text-amber-300"
+            >
+              {reported ? "Reported" : reporting ? "Reporting" : "Report"}
+            </button>
+            <button
+              onClick={onToggleLike}
+              disabled={liking}
+              className={`transition-colors ${isLiked ? "text-rose-500 drop-shadow-md cursor-pointer" : "text-slate-400 hover:text-slate-300 dark:text-slate-500 dark:hover:text-slate-400 cursor-pointer"} disabled:cursor-not-allowed disabled:opacity-60`}
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                  <path d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0 1 12 5.052 5.5 5.5 0 0 1 16.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z" />
+                </svg>
+            </button>
+          </div>
         </div>
       </div>
 

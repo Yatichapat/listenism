@@ -1,10 +1,11 @@
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, delete
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.models.song import Song
 from app.models.album import Album
 from app.models.user import User, UserRole
-from app.models.social import Follow, Like
+from app.models.social import Comment, Follow, Like
 
 
 class MusicRepository:
@@ -33,7 +34,25 @@ class MusicRepository:
         return list(self.db.scalars(stmt))
 
     def list_newest_albums(self, limit: int = 10) -> list[Album]:
-        return list(self.db.scalars(select(Album).order_by(Album.created_at.desc()).limit(limit)))
+        stmt = (
+            select(Album)
+            .join(Song, Song.album_id == Album.id)
+            .group_by(Album.id)
+            .order_by(Album.created_at.desc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt))
+
+    def get_album_by_id(self, album_id: int) -> Album | None:
+        stmt = (
+            select(Album)
+            .options(
+                joinedload(Album.artist),
+                selectinload(Album.songs).joinedload(Song.artist),
+            )
+            .where(Album.id == album_id)
+        )
+        return self.db.scalar(stmt)
 
     def list_hot_artists(self, limit: int = 10) -> list[User]:
         # Artists with most followers
@@ -150,6 +169,32 @@ class MusicRepository:
     def get_song_by_id(self, song_id: int) -> Song | None:
         return self.db.scalar(select(Song).where(Song.id == song_id))
 
+    def count_songs_in_album(self, album_id: int) -> int:
+        return int(self.db.scalar(select(func.count(Song.id)).where(Song.album_id == album_id)) or 0)
+
+    def delete_album_by_id(self, album_id: int) -> None:
+        self.db.execute(delete(Album).where(Album.id == album_id))
+        self.db.commit()
+
+    def cleanup_empty_albums(self) -> int:
+        empty_album_ids = list(
+            self.db.scalars(
+                select(Album.id)
+                .outerjoin(Song, Song.album_id == Album.id)
+                .group_by(Album.id)
+                .having(func.count(Song.id) == 0)
+            )
+        )
+
+        if not empty_album_ids:
+            return 0
+
+        self.db.execute(delete(Album).where(Album.id.in_(empty_album_ids)))
+        self.db.commit()
+        return len(empty_album_ids)
+
     def delete_song(self, song: Song) -> None:
-        self.db.delete(song)
+        self.db.execute(delete(Comment).where(Comment.song_id == song.id))
+        self.db.execute(delete(Like).where(Like.song_id == song.id))
+        self.db.execute(delete(Song).where(Song.id == song.id))
         self.db.commit()

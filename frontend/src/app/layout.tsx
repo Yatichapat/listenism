@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Navbar from "@/app/components/Navbar";
+import AudioPlaybackCoordinator from "@/app/components/AudioPlaybackCoordinator";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -28,6 +29,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50`}
       >
+        <AudioPlaybackCoordinator />
         <Navbar />
         <main className="min-h-screen">
           {children}

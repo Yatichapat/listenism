@@ -1,6 +1,7 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.models.social import Follow, Like
 from app.models.user import User, UserRole
 from app.modules.auth.schemas import UserPublic
 
@@ -14,6 +15,25 @@ class AuthRepository:
 
     def find_by_email(self, email: str) -> User | None:
         return self.db.scalar(select(User).where(User.email == email))
+
+    def list_users(self) -> list[User]:
+        return list(self.db.scalars(select(User).order_by(User.created_at.desc())))
+
+    def like_counts_by_user(self) -> dict[int, int]:
+        rows = self.db.execute(
+            select(Like.user_id, func.count(Like.id)).group_by(Like.user_id)
+        ).all()
+        return {user_id: int(count) for user_id, count in rows}
+
+    def follower_counts_by_user(self) -> dict[int, int]:
+        rows = self.db.execute(
+            select(Follow.artist_id, func.count(Follow.id)).group_by(Follow.artist_id)
+        ).all()
+        return {artist_id: int(count) for artist_id, count in rows}
+
+    def delete_user(self, user: User) -> None:
+        self.db.delete(user)
+        self.db.commit()
 
     def create_user(
         self,

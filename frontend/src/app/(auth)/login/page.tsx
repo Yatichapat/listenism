@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { login, setAccessToken } from "@/services/api/auth";
+import { useRouter, useSearchParams } from "next/navigation";
+import { login, setAuthTokens } from "@/services/api/auth";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,8 +19,10 @@ export default function LoginPage() {
 
     try {
       const result = await login({ email, password });
-      setAccessToken(result.access_token);
-      router.push("/");
+      setAuthTokens(result.access_token, result.refresh_token);
+      const redirect = searchParams.get("redirect");
+      const safeRedirect = redirect && redirect.startsWith("/") ? redirect : "/";
+      router.push(safeRedirect);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

@@ -1,7 +1,8 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+import { requestWithAuth } from "@/services/api/auth";
 import { type Song } from "@/types/songs";
-import { type Album } from "@/types/album";
+import { type Album, type AlbumDetail } from "@/types/album";
 import { type Artist } from "@/types/artist";
 
 type SongListResponse = {
@@ -73,6 +74,12 @@ export async function listNewestAlbums(limit: number = 10): Promise<Album[]> {
   return response.items;
 }
 
+export async function getAlbumById(albumId: number): Promise<AlbumDetail> {
+  return await request<AlbumDetail>(`/api/v1/music/albums/${albumId}`, {
+    method: "GET",
+  });
+}
+
 export async function listHotArtists(limit: number = 10): Promise<Artist[]> {
   const response = await request<ArtistListResponse>(`/api/v1/music/artists/hot?limit=${limit}`, {
     method: "GET",
@@ -88,30 +95,34 @@ export async function listNewestArtists(limit: number = 10): Promise<Artist[]> {
 }
 
 export async function listRecommendedSongs(token: string, limit: number = 10): Promise<Song[]> {
-  const response = await request<SongListResponse>(`/api/v1/music/songs/recommended?limit=${limit}`, {
+  const response = await requestWithAuth<SongListResponse>(`/api/v1/music/songs/recommended?limit=${limit}`, token, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
   });
   return response.items;
 }
 
 export async function listMySongs(token: string): Promise<Song[]> {
-  const response = await request<SongListResponse>("/api/v1/music/songs/mine", {
+  const response = await requestWithAuth<SongListResponse>("/api/v1/music/songs/mine", token, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
   });
   return response.items;
 }
 
 export async function deleteMySong(token: string, songId: number): Promise<void> {
-  await request<void>(`/api/v1/music/songs/${songId}`, {
+  await requestWithAuth<void>(`/api/v1/music/songs/${songId}`, token, {
     method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
   });
+}
+
+export type UploadMode = "single" | "album";
+
+export async function uploadArtistSongs(
+  token: string,
+  formData: FormData,
+): Promise<Song[]> {
+  const res = await requestWithAuth<SongListResponse>("/api/v1/music/songs/upload", token, {
+    method: "POST",
+    body: formData,
+  });
+  return res.items;
 }

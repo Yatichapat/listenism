@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta, timezone
 
-from jose import jwt
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.models.user import UserRole
 from app.modules.auth.repository import AuthRepository
-from app.modules.auth.schemas import AuthResponse, LoginRequest, RegisterRequest, UserPublic
+from app.modules.auth.schemas import AdminUserItem, AuthResponse, LoginRequest, RefreshRequest, RegisterRequest, UserListResponse, UserPublic
 from app.shared.config import settings
 from app.shared.exceptions import AppException
 
@@ -34,6 +34,43 @@ class AuthService:
             follower_count=follower_count,
         )
 
+    def _ensure_admin_role(self, user_id: int) -> None:
+        user = self.repo.get_by_id(user_id)
+        if user is None:
+            raise AppException("User not found", status_code=404)
+        if user.role != UserRole.admin:
+            raise AppException("Admin access required", status_code=403)
+
+    def list_users(self, admin_id: int) -> UserListResponse:
+        self._ensure_admin_role(admin_id)
+        users = self.repo.list_users()
+        like_counts = self.repo.like_counts_by_user()
+        follower_counts = self.repo.follower_counts_by_user()
+
+        items = [
+            AdminUserItem(
+                id=user.id,
+                email=user.email,
+                display_name=user.display_name,
+                role=user.role.value if isinstance(user.role, UserRole) else str(user.role),
+                like_count=like_counts.get(user.id, 0),
+                follower_count=follower_counts.get(user.id, 0),
+            )
+            for user in users
+        ]
+        return UserListResponse(items=items)
+
+    def delete_user(self, admin_id: int, target_user_id: int) -> None:
+        self._ensure_admin_role(admin_id)
+        if admin_id == target_user_id:
+            raise AppException("Admin cannot delete their own account", status_code=400)
+
+        target_user = self.repo.get_by_id(target_user_id)
+        if target_user is None:
+            raise AppException("User not found", status_code=404)
+
+        self.repo.delete_user(target_user)
+
     def register(self, payload: RegisterRequest) -> UserPublic:
         if self.repo.find_by_email(payload.email):
             raise AppException("Email already exists", status_code=409)
@@ -54,15 +91,52 @@ class AuthService:
         if not user or not pwd_context.verify(payload.password, user.password_hash):
             raise AppException("Invalid credentials", status_code=401)
 
-        expires_delta = timedelta(minutes=settings.access_token_expire_minutes)
-        access_token = self._create_access_token(subject=str(user.id), expires_delta=expires_delta)
-        return AuthResponse(access_token=access_token)
+        access_token = self._create_access_token(subject=str(user.id))
+        refresh_token = self._create_refresh_token(subject=str(user.id))
+        return AuthResponse(access_token=access_token, refresh_token=refresh_token)
 
-    def _create_access_token(self, subject: str, expires_delta: timedelta) -> str:
+    def refresh(self, payload: RefreshRequest) -> AuthResponse:
+        user_id = self._decode_refresh_token(payload.refresh_token)
+        user = self.repo.get_by_id(user_id)
+        if user is None:
+            raise AppException("User not found", status_code=401)
+
+        access_token = self._create_access_token(subject=str(user.id))
+        refresh_token = self._create_refresh_token(subject=str(user.id))
+        return AuthResponse(access_token=access_token, refresh_token=refresh_token)
+
+    def _create_access_token(self, subject: str) -> str:
+        expires_delta = timedelta(minutes=settings.access_token_expire_minutes)
+        return self._create_token(subject=subject, expires_delta=expires_delta, token_type="access")
+
+    def _create_refresh_token(self, subject: str) -> str:
+        expires_delta = timedelta(days=settings.refresh_token_expire_days)
+        return self._create_token(subject=subject, expires_delta=expires_delta, token_type="refresh")
+
+    def _create_token(self, subject: str, expires_delta: timedelta, token_type: str) -> str:
         now = datetime.now(timezone.utc)
         payload = {
             "sub": subject,
             "iat": int(now.timestamp()),
             "exp": int((now + expires_delta).timestamp()),
+            "type": token_type,
         }
         return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+
+    def _decode_refresh_token(self, token: str) -> int:
+        try:
+            payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        except JWTError as exc:
+            raise AppException("Invalid or expired refresh token", status_code=401) from exc
+
+        if payload.get("type") != "refresh":
+            raise AppException("Invalid refresh token", status_code=401)
+
+        subject = payload.get("sub")
+        if subject is None:
+            raise AppException("Invalid refresh token payload", status_code=401)
+
+        try:
+            return int(subject)
+        except ValueError as exc:
+            raise AppException("Invalid refresh token subject", status_code=401) from exc

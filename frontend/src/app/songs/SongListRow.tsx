@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { getAccessToken } from "@/services/api/auth";
+import { likeSong, unlikeSong } from "@/services/api/social";
 import { type SongProps } from "@/types/songs";
 
 function formatCompactCount(value: number): string {
@@ -16,7 +19,10 @@ function formatCompactCount(value: number): string {
 export default function SongListRow({ id, title, artistName, genre, audioUrl, viewCount = 0, likeCount = 0 }: SongProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLiked, setIsLiked] = useState(true); // Default true since it's "liked songs"
+  const [liking, setLiking] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
 
   const displayedLikeCount = likeCount + (isLiked ? 1 : 0) - 1; // Adjusting since default is liked
 
@@ -59,6 +65,31 @@ export default function SongListRow({ id, title, artistName, genre, audioUrl, vi
 
     audio.pause();
     setIsPlaying(false);
+  }
+
+  async function onToggleLike() {
+    const token = getAccessToken();
+    if (!token || liking) {
+      const redirectPath = pathname || "/";
+      router.push(`/login?redirect=${encodeURIComponent(redirectPath)}`);
+      return;
+    }
+
+    const nextLiked = !isLiked;
+    setIsLiked(nextLiked);
+    setLiking(true);
+
+    try {
+      if (nextLiked) {
+        await likeSong(token, id);
+      } else {
+        await unlikeSong(token, id);
+      }
+    } catch {
+      setIsLiked(!nextLiked);
+    } finally {
+      setLiking(false);
+    }
   }
 
   return (
@@ -105,10 +136,11 @@ export default function SongListRow({ id, title, artistName, genre, audioUrl, vi
         
         <button
           type="button"
-          onClick={() => setIsLiked(!isLiked)}
+          onClick={onToggleLike}
+          disabled={liking}
           className={`flex items-center gap-1 transition-colors ${
             isLiked ? "text-rose-500" : "hover:text-rose-500"
-          }`}
+          } disabled:cursor-not-allowed disabled:opacity-60`}
         >
           {isLiked ? (
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">

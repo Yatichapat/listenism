@@ -42,8 +42,12 @@ services:
     build:
       context: ./ml
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       MODEL_PATH: /app/models/cf_model.pkl
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-listenism}:${POSTGRES_PASSWORD:-listenism}@postgres:5432/${POSTGRES_DB:-listenism_db}
     ports:
       - "8001:8001"
     command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8001"]

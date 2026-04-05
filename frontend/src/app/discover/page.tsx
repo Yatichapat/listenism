@@ -87,6 +87,7 @@ export default async function DiscoverPage() {
                 artistName={song.artist_name}
                 genre={song.genre}
                 audioUrl={song.audio_url}
+                coverUrl={song.cover_url}
                 viewCount={song.view_count ?? 120 + (song.id % 7) * 437}
                 likeCount={song.like_count ?? 12 + (song.id % 5) * 53}
               />
@@ -105,6 +106,7 @@ export default async function DiscoverPage() {
                 artistName={song.artist_name}
                 genre={song.genre}
                 audioUrl={song.audio_url}
+                coverUrl={song.cover_url}
                 viewCount={song.view_count ?? 25000 + (song.id % 7) * 1037}
                 likeCount={song.like_count ?? 4000 + (song.id % 5) * 453}
               />

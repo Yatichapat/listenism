@@ -16,6 +16,7 @@ export type SongProps = {
     artistName: string;
     genre?: string | null;
     audioUrl?: string | null;
+    coverUrl?: string | null;
     viewCount?: number;
     likeCount?: number;
 };

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.infrastructure.database import get_db
-from app.modules.auth.schemas import AuthResponse, LoginRequest, RegisterRequest, UserPublic
+from app.modules.auth.schemas import AuthResponse, LoginRequest, RefreshRequest, RegisterRequest, UserListResponse, UserPublic
 from app.modules.auth.service import AuthService
 from app.shared.deps import current_user_id
 
@@ -19,11 +19,33 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> AuthResponse:
     return AuthService(db).login(payload)
 
 
+@router.post("/refresh", response_model=AuthResponse)
+def refresh(payload: RefreshRequest, db: Session = Depends(get_db)) -> AuthResponse:
+    return AuthService(db).refresh(payload)
+
+
 @router.get("/me", response_model=UserPublic)
 def me(
     db: Session = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> UserPublic:
     return AuthService(db).me(user_id)
+
+
+@router.get("/users", response_model=UserListResponse)
+def list_users(
+    db: Session = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> UserListResponse:
+    return AuthService(db).list_users(admin_id=user_id)
+
+
+@router.delete("/users/{target_user_id}", status_code=204)
+def delete_user(
+    target_user_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> None:
+    AuthService(db).delete_user(admin_id=user_id, target_user_id=target_user_id)
 
 

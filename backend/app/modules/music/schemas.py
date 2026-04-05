@@ -29,6 +29,10 @@ class AlbumResponse(BaseModel):
 	cover_url: str | None = None
 
 
+class AlbumDetailResponse(AlbumResponse):
+	songs: list[SongResponse]
+
+
 class AlbumListResponse(BaseModel):
 	items: list[AlbumResponse]
 
