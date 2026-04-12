@@ -1,14 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { getAccessToken, me, type UserPublic } from "@/services/api/auth";
-import { listMySongs } from "@/services/api/music";
-import { type Song } from "@/types/songs";
-
-type GenreStat = {
-  genre: string;
-  count: number;
-};
+import { getArtistAnalytics, listMySongs, type ArtistAnalytics } from "@/services/api/music";
 
 function compactNumber(value: number): string {
   if (value >= 1_000_000) {
@@ -22,7 +16,7 @@ function compactNumber(value: number): string {
 
 export default function AnalyticsPage() {
   const [profile, setProfile] = useState<UserPublic | null>(null);
-  const [songs, setSongs] = useState<Song[]>([]);
+  const [analytics, setAnalytics] = useState<ArtistAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +30,7 @@ export default function AnalyticsPage() {
       }
 
       try {
-        const [user, mySongs] = await Promise.all([me(token), listMySongs(token)]);
+        const user = await me(token);
         if (user.role !== "artist") {
           setError("Artist access required.");
           setLoading(false);
@@ -44,7 +38,32 @@ export default function AnalyticsPage() {
         }
 
         setProfile(user);
-        setSongs(mySongs);
+
+        try {
+          const artistAnalytics = await getArtistAnalytics(token);
+          setAnalytics(artistAnalytics);
+        } catch {
+          // Fallback mode: support older backend instances that don't expose analytics endpoint yet.
+          const songs = await listMySongs(token);
+          const fallbackAnalytics: ArtistAnalytics = {
+            artist_id: user.id,
+            artist_name: user.display_name,
+            follower_count: user.follower_count ?? 0,
+            total_songs: songs.length,
+            total_plays: 0,
+            top_songs: [...songs]
+              .sort((a, b) => (b.like_count ?? 0) - (a.like_count ?? 0))
+              .slice(0, 10)
+              .map((song) => ({
+                id: song.id,
+                title: song.title,
+                genre: song.genre,
+                play_count: 0,
+                like_count: song.like_count ?? 0,
+              })),
+          };
+          setAnalytics(fallbackAnalytics);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load analytics.");
       } finally {
@@ -55,30 +74,10 @@ export default function AnalyticsPage() {
     void load();
   }, []);
 
-  const totalSongs = songs.length;
-  const totalFollowers = profile?.follower_count ?? 0;
-
-  const totalLikes = useMemo(
-    () => songs.reduce((sum, song) => sum + (song.like_count ?? 0), 0),
-    [songs],
-  );
-
-  const genreStats = useMemo<GenreStat[]>(() => {
-    const map = new Map<string, number>();
-    for (const song of songs) {
-      const genre = song.genre?.trim() || "Unknown";
-      map.set(genre, (map.get(genre) ?? 0) + 1);
-    }
-
-    return Array.from(map.entries())
-      .map(([genre, count]) => ({ genre, count }))
-      .sort((a, b) => b.count - a.count);
-  }, [songs]);
-
-  const topSongs = useMemo(
-    () => [...songs].sort((a, b) => (b.like_count ?? 0) - (a.like_count ?? 0)).slice(0, 5),
-    [songs],
-  );
+  const totalSongs = analytics?.total_songs ?? 0;
+  const totalFollowers = analytics?.follower_count ?? profile?.follower_count ?? 0;
+  const totalPlays = analytics?.total_plays ?? 0;
+  const topSongs = analytics?.top_songs ?? [];
 
   if (loading) {
     return <main className="mx-auto max-w-6xl p-8 text-sm text-slate-500">Loading analytics...</main>;
@@ -107,27 +106,30 @@ export default function AnalyticsPage() {
           <p className="mt-2 text-3xl font-bold">{compactNumber(totalFollowers)}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900/40">
-          <p className="text-sm text-slate-500">Total Likes</p>
-          <p className="mt-2 text-3xl font-bold">{compactNumber(totalLikes)}</p>
+          <p className="text-sm text-slate-500">Total Plays</p>
+          <p className="mt-2 text-3xl font-bold">{compactNumber(totalPlays)}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900/40">
-          <p className="text-sm text-slate-500">Avg Likes / Song</p>
-          <p className="mt-2 text-3xl font-bold">{totalSongs > 0 ? (totalLikes / totalSongs).toFixed(1) : "0.0"}</p>
+          <p className="text-sm text-slate-500">Avg Plays / Song</p>
+          <p className="mt-2 text-3xl font-bold">{totalSongs > 0 ? (totalPlays / totalSongs).toFixed(1) : "0.0"}</p>
         </div>
       </section>
 
       <section className="mt-8 grid gap-6 lg:grid-cols-2">
         <article className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900/40">
-          <h2 className="text-lg font-semibold">Genre Breakdown</h2>
-          {genreStats.length === 0 ? (
+          <h2 className="text-lg font-semibold">Top Songs by Plays</h2>
+          {topSongs.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">No songs uploaded yet.</p>
           ) : (
             <ul className="mt-4 space-y-3">
-              {genreStats.map((item) => (
-                <li key={item.genre} className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-slate-700 dark:text-slate-200">{item.genre}</span>
+              {topSongs.map((song) => (
+                <li key={song.id} className="flex items-center justify-between gap-3 text-sm">
+                  <div>
+                    <p className="font-medium text-slate-700 dark:text-slate-200">{song.title}</p>
+                    <p className="text-xs text-slate-500">{song.genre || "Unknown genre"}</p>
+                  </div>
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                    {item.count}
+                    {song.play_count} plays
                   </span>
                 </li>
               ))}
@@ -136,19 +138,13 @@ export default function AnalyticsPage() {
         </article>
 
         <article className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900/40">
-          <h2 className="text-lg font-semibold">Top Songs by Likes</h2>
-          {topSongs.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500">No songs uploaded yet.</p>
-          ) : (
-            <ul className="mt-4 space-y-3">
-              {topSongs.map((song) => (
-                <li key={song.id} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="truncate font-medium text-slate-700 dark:text-slate-200">{song.title}</span>
-                  <span className="text-slate-500">{song.like_count ?? 0} likes</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <h2 className="text-lg font-semibold">Engagement Summary</h2>
+          <div className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
+            <p>Artist: <span className="font-medium text-slate-900 dark:text-white">{analytics?.artist_name || profile?.display_name || "-"}</span></p>
+            <p>Followers: <span className="font-medium text-slate-900 dark:text-white">{compactNumber(totalFollowers)}</span></p>
+            <p>Total songs: <span className="font-medium text-slate-900 dark:text-white">{compactNumber(totalSongs)}</span></p>
+            <p>Total plays: <span className="font-medium text-slate-900 dark:text-white">{compactNumber(totalPlays)}</span></p>
+          </div>
         </article>
       </section>
     </main>

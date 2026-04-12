@@ -89,9 +89,22 @@ def _load_from_database(database_url: str) -> pd.DataFrame:
 		text(
 			"""
 			SELECT
+				le.user_id,
+				le.song_id,
+				1.0 AS interaction,
+				s.genre,
+				s.artist_id,
+				s.duration_seconds
+			FROM listen_events AS le
+			JOIN songs AS s ON s.id = le.song_id
+			"""
+		),
+		text(
+			"""
+			SELECT
 				l.user_id,
 				l.song_id,
-				1.0 AS interaction,
+				1.2 AS interaction,
 				s.genre,
 				s.artist_id,
 				s.duration_seconds
@@ -117,7 +130,7 @@ def _load_from_database(database_url: str) -> pd.DataFrame:
 			SELECT
 				f.follower_id AS user_id,
 				s.id AS song_id,
-				0.25 AS interaction,
+				0.2 AS interaction,
 				s.genre,
 				s.artist_id,
 				s.duration_seconds

@@ -3,8 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getAccessToken } from "@/services/api/auth";
-import { likeSong, unlikeSong } from "@/services/api/social";
+import { isSongLikedInStorage, likeSong, markSongAsLiked, unlikeSong } from "@/services/api/social";
 import { type SongProps } from "@/types/songs";
+import SaveToPlaylistDropdown from "@/app/components/SaveToPlaylistDropdown";
+
+const LIKED_SONGS_CHANGED_EVENT = "listenism-liked-songs-changed";
+
+type SongListRowProps = SongProps & {
+  onUnliked?: (songId: number) => void;
+};
 
 function formatCompactCount(value: number): string {
   if (value >= 1_000_000) {
@@ -16,15 +23,26 @@ function formatCompactCount(value: number): string {
   return String(value);
 }
 
-export default function SongListRow({ id, title, artistName, genre, audioUrl, viewCount = 0, likeCount = 0 }: SongProps) {
+export default function SongListRow({
+  id,
+  title,
+  artistName,
+  genre,
+  audioUrl,
+  viewCount = 0,
+  likeCount = 0,
+  isLiked: initialIsLiked,
+  onUnliked,
+}: SongListRowProps) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isLiked, setIsLiked] = useState(true); // Default true since it's "liked songs"
+  const [isLiked, setIsLiked] = useState(() => Boolean(initialIsLiked) || isSongLikedInStorage(id));
+  const [likeDelta, setLikeDelta] = useState(0);
   const [liking, setLiking] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
-  const displayedLikeCount = likeCount + (isLiked ? 1 : 0) - 1; // Adjusting since default is liked
+  const displayedLikeCount = likeCount + likeDelta;
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -47,6 +65,33 @@ export default function SongListRow({ id, title, artistName, genre, audioUrl, vi
       audio.removeEventListener("ended", handleEnd);
     };
   }, []);
+
+  useEffect(() => {
+    if (initialIsLiked) {
+      markSongAsLiked(id);
+    }
+  }, [id, initialIsLiked]);
+
+  useEffect(() => {
+    function syncLikedState() {
+      const nextLiked = isSongLikedInStorage(id);
+      setIsLiked((currentLiked) => {
+        if (currentLiked === nextLiked) {
+          return currentLiked;
+        }
+
+        setLikeDelta((currentDelta) => currentDelta + (nextLiked ? 1 : -1));
+        return nextLiked;
+      });
+    }
+
+    syncLikedState();
+    window.addEventListener(LIKED_SONGS_CHANGED_EVENT, syncLikedState);
+
+    return () => {
+      window.removeEventListener(LIKED_SONGS_CHANGED_EVENT, syncLikedState);
+    };
+  }, [id]);
 
   async function onTogglePlay() {
     const audio = audioRef.current;
@@ -76,7 +121,10 @@ export default function SongListRow({ id, title, artistName, genre, audioUrl, vi
     }
 
     const nextLiked = !isLiked;
+    const previousLiked = isLiked;
+    const previousLikeDelta = likeDelta;
     setIsLiked(nextLiked);
+    setLikeDelta((currentDelta) => currentDelta + (nextLiked ? 1 : -1));
     setLiking(true);
 
     try {
@@ -84,9 +132,11 @@ export default function SongListRow({ id, title, artistName, genre, audioUrl, vi
         await likeSong(token, id);
       } else {
         await unlikeSong(token, id);
+        onUnliked?.(id);
       }
     } catch {
-      setIsLiked(!nextLiked);
+      setIsLiked(previousLiked);
+      setLikeDelta(previousLikeDelta);
     } finally {
       setLiking(false);
     }
@@ -153,6 +203,8 @@ export default function SongListRow({ id, title, artistName, genre, audioUrl, vi
           )}
           <span>{formatCompactCount(displayedLikeCount)}</span>
         </button>
+
+        <SaveToPlaylistDropdown songId={id} />
       </div>
 
       {audioUrl && (

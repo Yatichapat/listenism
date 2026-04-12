@@ -5,6 +5,7 @@ from app.infrastructure.database import get_db
 from app.modules.social.schemas import (
     ActionResponse,
     CommentRequest,
+    CommentListResponse,
     FollowRequest,
     LikeRequest,
     SongReportListResponse,
@@ -61,6 +62,14 @@ def comment_song(
     user_id: int = Depends(current_user_id),
 ) -> ActionResponse:
     return SocialService(db).comment_song(user_id=user_id, payload=payload)
+
+
+@router.get("/comments", response_model=CommentListResponse)
+def list_comments(
+    song_id: int,
+    db: Session = Depends(get_db),
+) -> CommentListResponse:
+    return SocialService(db).list_comments(song_id=song_id)
 
 
 @router.post("/report/song", response_model=ActionResponse)

@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { getAccessToken, me } from "@/services/api/auth";
-import { deleteMySong, listMySongs, uploadArtistSongs, type UploadMode } from "@/services/api/music";
+import { deleteMySong, listMySongs, updateMySong, uploadArtistSongs, type UploadMode } from "@/services/api/music";
 import { type Song } from "@/types/songs";
 
 type AlbumTrackDraft = {
@@ -26,6 +26,11 @@ const UploadSongPage = () => {
   const [mySongs, setMySongs] = useState<Song[]>([]);
   const [songsLoading, setSongsLoading] = useState(false);
   const [deletingSongId, setDeletingSongId] = useState<number | null>(null);
+  const [editingSongId, setEditingSongId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editGenre, setEditGenre] = useState("");
+  const [editCover, setEditCover] = useState<File | null>(null);
+  const [savingSongId, setSavingSongId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -63,6 +68,23 @@ const UploadSongPage = () => {
     setCoverImage(null);
     setSingleAudio(null);
     setAlbumTracks([]);
+  };
+
+  const cancelEdit = () => {
+    setEditingSongId(null);
+    setEditTitle("");
+    setEditGenre("");
+    setEditCover(null);
+  };
+
+  const startEditSong = (song: Song) => {
+    setEditingSongId(song.id);
+    setEditTitle(song.title);
+    setEditGenre(song.genre || "");
+    setEditCover(null);
+    setSuccess(false);
+    setSuccessMessage("");
+    setError("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -167,6 +189,48 @@ const UploadSongPage = () => {
       setError(err instanceof Error ? err.message : "Delete failed.");
     } finally {
       setDeletingSongId(null);
+    }
+  };
+
+  const handleUpdateSong = async (songId: number) => {
+    const token = getAccessToken();
+    if (!token) {
+      setError("Please login first before editing songs.");
+      return;
+    }
+
+    if (!editTitle.trim()) {
+      setError("Please fill in the song title.");
+      return;
+    }
+
+    if (!editGenre.trim()) {
+      setError("Please select a genre.");
+      return;
+    }
+
+    setSavingSongId(songId);
+    setError("");
+    setSuccess(false);
+    setSuccessMessage("");
+
+    try {
+      const formData = new FormData();
+      formData.append("title", editTitle.trim());
+      formData.append("genre", editGenre.trim());
+      if (editCover) {
+        formData.append("cover_file", editCover);
+      }
+
+      const updatedSong = await updateMySong(token, songId, formData);
+      setMySongs((prev) => prev.map((song) => (song.id === songId ? updatedSong : song)));
+      setSuccess(true);
+      setSuccessMessage("Song updated successfully.");
+      cancelEdit();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Update failed.");
+    } finally {
+      setSavingSongId(null);
     }
   };
 
@@ -364,35 +428,100 @@ const UploadSongPage = () => {
         {!songsLoading && mySongs.length > 0 && (
           <ul className="space-y-3">
             {mySongs.map((song) => (
-              <li key={song.id} className="flex items-center justify-between gap-4 rounded border border-gray-200 p-3">
-                <div className="flex items-center gap-3">
-                  {song.cover_url ? (
-                    <img src={song.cover_url} alt={song.title} className="h-14 w-14 rounded object-cover" />
-                  ) : (
-                    <div className="flex h-14 w-14 items-center justify-center rounded bg-gray-100 text-xs text-gray-400">
-                      No cover
+              <li key={song.id} className="rounded border border-gray-200 p-3">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex items-center gap-3">
+                    {song.cover_url ? (
+                      <img src={song.cover_url} alt={song.title} className="h-14 w-14 rounded object-cover" />
+                    ) : (
+                      <div className="flex h-14 w-14 items-center justify-center rounded bg-gray-100 text-xs text-gray-400">
+                        No cover
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium">{song.title}</p>
+                      <p className="text-xs text-gray-500">{song.genre || "Unknown genre"}</p>
                     </div>
-                  )}
-                  <div>
-                    <p className="font-medium">{song.title}</p>
-                    <p className="text-xs text-gray-500">{song.genre || "Unknown genre"}</p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    {song.audio_url ? (
+                      <audio controls preload="none" className="h-8 w-64 max-w-full">
+                        <source src={song.audio_url} />
+                      </audio>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => startEditSong(song)}
+                      className="rounded border border-blue-200 px-3 py-1 text-sm text-blue-700 hover:bg-blue-50"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteSong(song.id)}
+                      className="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+                      disabled={deletingSongId === song.id}
+                    >
+                      {deletingSongId === song.id ? "Deleting..." : "Delete"}
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {song.audio_url ? (
-                    <audio controls preload="none" className="h-8 w-64 max-w-full">
-                      <source src={song.audio_url} />
-                    </audio>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={() => void handleDeleteSong(song.id)}
-                    className="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700 disabled:opacity-50"
-                    disabled={deletingSongId === song.id}
-                  >
-                    {deletingSongId === song.id ? "Deleting..." : "Delete"}
-                  </button>
-                </div>
+
+                {editingSongId === song.id && (
+                  <div className="mt-4 rounded border border-blue-100 bg-blue-50/40 p-4">
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div>
+                        <label className="mb-1 block text-sm font-medium">Title</label>
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          className="w-full rounded border px-3 py-2"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium">Genre</label>
+                        <select
+                          value={editGenre}
+                          onChange={(e) => setEditGenre(e.target.value)}
+                          className="w-full rounded border px-3 py-2"
+                        >
+                          <option value="" disabled>Select genre</option>
+                          {GENRES.map((g) => (
+                            <option key={g} value={g}>{g}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium">New Cover</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setEditCover(e.target.files?.[0] || null)}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => void handleUpdateSong(song.id)}
+                        className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+                        disabled={savingSongId === song.id}
+                      >
+                        {savingSongId === song.id ? "Saving..." : "Save Changes"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEdit}
+                        className="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

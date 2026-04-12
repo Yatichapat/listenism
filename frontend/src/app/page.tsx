@@ -1,7 +1,7 @@
 import SectionLayout from "@/app/components/discover/SectionLayout";
 import AlbumCard from "@/app/components/discover/AlbumCard";
 import ArtistCard from "@/app/components/discover/ArtistCard";
-import Song from "@/app/songs/Song";
+import SongList from "@/app/components/SongList";
 import {
   listNewestAlbums,
   listNewestSongs,
@@ -72,37 +72,25 @@ export default async function Home() {
 
         {newestSongs.length > 0 && (
           <SectionLayout title="Newest Singles" subtitle="The latest drops and new releases">
-            {newestSongs.map((song) => (
-              <Song
-                key={song.id}
-                id={song.id}
-                title={song.title}
-                artistName={song.artist_name}
-                genre={song.genre}
-                audioUrl={song.audio_url}
-                coverUrl={song.cover_url}
-                viewCount={song.view_count ?? 120 + (song.id % 7) * 437}
-                likeCount={song.like_count ?? 12 + (song.id % 5) * 53}
-              />
-            ))}
+            <SongList
+              songs={newestSongs.map((song) => ({
+                ...song,
+                view_count: song.view_count ?? 120 + (song.id % 7) * 437,
+                like_count: song.like_count ?? 12 + (song.id % 5) * 53,
+              }))}
+            />
           </SectionLayout>
         )}
 
         {hotSongs.length > 0 && (
           <SectionLayout title="Hot Songs" subtitle="Most played tracks setting the charts on fire">
-            {hotSongs.map((song) => (
-              <Song
-                key={song.id}
-                id={song.id}
-                title={song.title}
-                artistName={song.artist_name}
-                genre={song.genre}
-                audioUrl={song.audio_url}
-                coverUrl={song.cover_url}
-                viewCount={song.view_count ?? 25000 + (song.id % 7) * 1037}
-                likeCount={song.like_count ?? 4000 + (song.id % 5) * 453}
-              />
-            ))}
+            <SongList
+              songs={hotSongs.map((song) => ({
+                ...song,
+                view_count: song.view_count ?? 25000 + (song.id % 7) * 1037,
+                like_count: song.like_count ?? 4000 + (song.id % 5) * 453,
+              }))}
+            />
           </SectionLayout>
         )}
 

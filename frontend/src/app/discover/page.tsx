@@ -1,6 +1,7 @@
 import SectionLayout from "@/app/components/discover/SectionLayout";
 import AlbumCard from "@/app/components/discover/AlbumCard";
 import ArtistCard from "@/app/components/discover/ArtistCard";
+import FollowingFeedSection from "@/app/components/discover/FollowingFeedSection";
 import RecommendedSongsSection from "@/app/components/discover/RecommendedSongsSection";
 import Song from "@/app/songs/Song";
 import {
@@ -65,6 +66,7 @@ export default async function DiscoverPage() {
            </div>
         )}
 
+        <FollowingFeedSection />
         <RecommendedSongsSection />
 
         {/* 1. Newest Albums */}

@@ -48,6 +48,15 @@ class SocialRepository:
         self.db.add(Comment(user_id=user_id, song_id=song_id, content=content))
         self.db.commit()
 
+    def list_comments_for_song(self, song_id: int) -> list[tuple[Comment, str]]:
+        rows = self.db.execute(
+            select(Comment, User.display_name)
+            .join(User, User.id == Comment.user_id)
+            .where(Comment.song_id == song_id)
+            .order_by(Comment.created_at.asc())
+        ).all()
+        return [(comment, user_name) for comment, user_name in rows]
+
     def report_song(self, reporter_id: int, song_id: int, reason: str | None) -> None:
         song_exists = self.db.scalar(select(Song.id).where(Song.id == song_id))
         if song_exists is None:

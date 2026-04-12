@@ -19,5 +19,6 @@ class Song(Base):
     # Relationships
     artist: Mapped["User"] = relationship("User", back_populates="songs")  # noqa: F821
     album: Mapped["Album | None"] = relationship("Album", back_populates="songs")  # noqa: F821
+    playlist_entries: Mapped[list["PlaylistSong"]] = relationship("PlaylistSong", back_populates="song", cascade="all, delete-orphan")  # noqa: F821
     likes: Mapped[list["Like"]] = relationship("Like", back_populates="song", cascade="all, delete-orphan")  # noqa: F821
     comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="song", cascade="all, delete-orphan")  # noqa: F821

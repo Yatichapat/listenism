@@ -16,6 +16,19 @@ class CommentRequest(BaseModel):
 	content: str
 
 
+class CommentItem(BaseModel):
+	id: int
+	song_id: int
+	user_id: int
+	user_name: str
+	content: str
+	created_at: datetime | None = None
+
+
+class CommentListResponse(BaseModel):
+	items: list[CommentItem]
+
+
 class SongReportRequest(BaseModel):
 	song_id: int
 	reason: str | None = None

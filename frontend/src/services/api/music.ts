@@ -17,6 +17,49 @@ type ArtistListResponse = {
   items: Artist[];
 };
 
+export type PlaylistSong = Song & {
+  position: number;
+};
+
+export type Playlist = {
+  id: number;
+  user_id: number;
+  name: string;
+  created_at?: string | null;
+  songs: PlaylistSong[];
+};
+
+type PlaylistListResponse = {
+  items: Playlist[];
+};
+
+export type ArtistSongAnalytics = {
+  id: number;
+  title: string;
+  genre: string | null;
+  play_count: number;
+  like_count: number;
+};
+
+export type ArtistAnalytics = {
+  artist_id: number;
+  artist_name: string;
+  follower_count: number;
+  total_songs: number;
+  total_plays: number;
+  top_songs: ArtistSongAnalytics[];
+};
+
+type RecommendationItem = {
+  song_id: number;
+  score: number;
+};
+
+type RecommendationResponse = {
+  user_id: number;
+  items: RecommendationItem[];
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -101,11 +144,122 @@ export async function listRecommendedSongs(token: string, limit: number = 10): P
   return response.items;
 }
 
+export async function listFollowingFeedSongs(token: string, limit: number = 20): Promise<Song[]> {
+  const response = await requestWithAuth<SongListResponse>(`/api/v1/music/songs/feed?limit=${limit}`, token, {
+    method: "GET",
+  });
+  return response.items;
+}
+
+export async function listGenreFallbackSongs(token: string, limit: number = 10): Promise<Song[]> {
+  const response = await requestWithAuth<SongListResponse>(`/api/v1/music/songs/fallback/genre?limit=${limit}`, token, {
+    method: "GET",
+  });
+  return response.items;
+}
+
+export async function listAIRecommendedSongs(token: string, limit: number = 10): Promise<Song[]> {
+  const response = await requestWithAuth<RecommendationResponse>(`/api/v1/recommendation/for-you?limit=${limit}`, token, {
+    method: "GET",
+  });
+
+  const rankedSongIds = (response.items || []).map((item) => item.song_id);
+  if (rankedSongIds.length === 0) {
+    return [];
+  }
+
+  const songs = await listSongs();
+  const byId = new Map<number, Song>(songs.map((song) => [song.id, song]));
+
+  const rankedSongs: Song[] = [];
+  for (const songId of rankedSongIds) {
+    const song = byId.get(songId);
+    if (song) {
+      rankedSongs.push(song);
+    }
+    if (rankedSongs.length >= limit) {
+      break;
+    }
+  }
+
+  return rankedSongs;
+}
+
+export async function recordSongListen(token: string, songId: number): Promise<void> {
+  await requestWithAuth<{ message: string }>(`/api/v1/music/songs/${songId}/listen`, token, {
+    method: "POST",
+  });
+}
+
+export async function updateMySong(
+  token: string,
+  songId: number,
+  formData: FormData,
+): Promise<Song> {
+  return requestWithAuth<Song>(`/api/v1/music/songs/${songId}`, token, {
+    method: "PATCH",
+    body: formData,
+  });
+}
+
+export async function getArtistAnalytics(token: string): Promise<ArtistAnalytics> {
+  return requestWithAuth<ArtistAnalytics>("/api/v1/music/analytics/artist", token, {
+    method: "GET",
+  });
+}
+
 export async function listMySongs(token: string): Promise<Song[]> {
   const response = await requestWithAuth<SongListResponse>("/api/v1/music/songs/mine", token, {
     method: "GET",
   });
   return response.items;
+}
+
+export async function listLikedSongs(token: string): Promise<Song[]> {
+  const response = await requestWithAuth<SongListResponse>("/api/v1/music/songs/liked", token, {
+    method: "GET",
+  });
+  return response.items;
+}
+
+export async function createPlaylist(token: string, name: string): Promise<Playlist> {
+  return requestWithAuth<Playlist>("/api/v1/music/playlists", token, {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function listPlaylists(token: string): Promise<Playlist[]> {
+  const response = await requestWithAuth<PlaylistListResponse>("/api/v1/music/playlists", token, {
+    method: "GET",
+  });
+  return response.items;
+}
+
+export async function renamePlaylist(token: string, playlistId: number, name: string): Promise<Playlist> {
+  return requestWithAuth<Playlist>(`/api/v1/music/playlists/${playlistId}`, token, {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function deletePlaylist(token: string, playlistId: number): Promise<void> {
+  await requestWithAuth<void>(`/api/v1/music/playlists/${playlistId}`, token, {
+    method: "DELETE",
+  });
+}
+
+export async function addSongToPlaylist(token: string, playlistId: number, songId: number): Promise<Playlist> {
+  return requestWithAuth<Playlist>(`/api/v1/music/playlists/${playlistId}/songs`, token, {
+    method: "POST",
+    body: JSON.stringify({ song_id: songId }),
+  });
+}
+
+export async function removeSongFromPlaylist(token: string, playlistId: number, songId: number): Promise<Playlist> {
+  return requestWithAuth<Playlist>(`/api/v1/music/playlists/${playlistId}/songs/${songId}`, token, {
+    method: "DELETE",
+  });
 }
 
 export async function deleteMySong(token: string, songId: number): Promise<void> {

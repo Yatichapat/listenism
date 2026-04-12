@@ -19,5 +19,6 @@ export type SongProps = {
     coverUrl?: string | null;
     viewCount?: number;
     likeCount?: number;
+    isLiked?: boolean;
 };
 

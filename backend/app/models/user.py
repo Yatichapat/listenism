@@ -26,6 +26,7 @@ class User(Base):
     # Relationships
     albums: Mapped[list["Album"]] = relationship("Album", back_populates="artist", cascade="all, delete-orphan")  # noqa: F821
     songs: Mapped[list["Song"]] = relationship("Song", back_populates="artist", cascade="all, delete-orphan")  # noqa: F821
+    playlists: Mapped[list["Playlist"]] = relationship("Playlist", back_populates="user", cascade="all, delete-orphan")  # noqa: F821
     likes: Mapped[list["Like"]] = relationship("Like", back_populates="user", cascade="all, delete-orphan")  # noqa: F821
     comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="user", cascade="all, delete-orphan")  # noqa: F821
     following: Mapped[list["Follow"]] = relationship("Follow", foreign_keys="Follow.follower_id", back_populates="follower", cascade="all, delete-orphan")  # noqa: F821

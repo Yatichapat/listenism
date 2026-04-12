@@ -1,25 +1,33 @@
 from datetime import datetime
-from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from fastapi import UploadFile
 
-from app.infrastructure.storage import get_public_file_url, upload_bytes
+from app.infrastructure.storage import get_public_file_url
 from app.models.user import User, UserRole
 from app.shared.exceptions import AppException
 from app.modules.music.repository import MusicRepository
 from app.modules.music.schemas import (
     SongCreateRequest, SongListResponse, SongResponse,
     AlbumResponse, AlbumDetailResponse, AlbumListResponse,
-    ArtistResponse, ArtistListResponse
+    ArtistResponse, ArtistListResponse,
+    ArtistAnalyticsResponse, SongPlayStat,
+    PlaylistAddSongRequest,
+    PlaylistCreateRequest,
+    PlaylistListResponse,
+    PlaylistRenameRequest,
+    PlaylistResponse,
+    PlaylistSongResponse,
 )
+from app.modules.music.upload_service import MusicUploadService
 
 
 class MusicService:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.repo = MusicRepository(db)
+        self.upload_service = MusicUploadService(self.repo, self._map_song)
 
     def _ensure_artist_role(self, user_id: int) -> None:
         role = self.db.scalar(select(User.role).where(User.id == user_id))
@@ -30,6 +38,11 @@ class MusicService:
         role = self.db.scalar(select(User.role).where(User.id == user_id, User.is_active.is_(True)))
         if role != UserRole.admin:
             raise AppException("Admin access required", status_code=403)
+
+    def _ensure_listener_or_artist_role(self, user_id: int) -> None:
+        role = self.db.scalar(select(User.role).where(User.id == user_id, User.is_active.is_(True)))
+        if role not in (UserRole.listener, UserRole.artist):
+            raise AppException("Only listener and artist accounts can manage playlists", status_code=403)
 
     def _map_song(self, s, view_count=None, like_count=None) -> SongResponse:
         return SongResponse(
@@ -43,20 +56,64 @@ class MusicService:
             like_count=like_count,
         )
 
+    def _map_songs(self, songs) -> SongListResponse:
+        return SongListResponse(items=[self._map_song(song) for song in songs])
+
+    def _map_playlist(self, playlist) -> PlaylistResponse:
+        items: list[PlaylistSongResponse] = []
+        for entry in sorted(playlist.songs, key=lambda value: value.position):
+            song = entry.song
+            if song is None:
+                continue
+            song_payload = self._map_song(song)
+            items.append(
+                PlaylistSongResponse(
+                    id=song_payload.id,
+                    title=song_payload.title,
+                    artist_name=song_payload.artist_name,
+                    genre=song_payload.genre,
+                    audio_url=song_payload.audio_url,
+                    cover_url=song_payload.cover_url,
+                    view_count=song_payload.view_count,
+                    like_count=song_payload.like_count,
+                    position=entry.position,
+                )
+            )
+
+        return PlaylistResponse(
+            id=playlist.id,
+            user_id=playlist.user_id,
+            name=playlist.name,
+            created_at=playlist.created_at,
+            songs=items,
+        )
+
+    def _map_artists(self, artists) -> ArtistListResponse:
+        items = [
+            ArtistResponse(
+                id=artist.id,
+                name=artist.display_name,
+                followers_count=len(artist.followers) if artist.followers else 0,
+                avatar_url=None,
+            )
+            for artist in artists
+        ]
+        return ArtistListResponse(items=items)
+
+    def _delete_song_and_cleanup_album(self, song) -> None:
+        album_id = song.album_id
+        self.repo.delete_song(song)
+        if album_id is not None and self.repo.count_songs_in_album(album_id) == 0:
+            self.repo.delete_album_by_id(album_id)
+
     def list_songs(self) -> SongListResponse:
-        songs = self.repo.list_songs()
-        items = [self._map_song(s) for s in songs]
-        return SongListResponse(items=items)
+        return self._map_songs(self.repo.list_songs())
 
     def list_newest_songs(self, limit: int = 10) -> SongListResponse:
-        songs = self.repo.list_newest_songs(limit)
-        items = [self._map_song(s) for s in songs]
-        return SongListResponse(items=items)
+        return self._map_songs(self.repo.list_newest_songs(limit))
 
     def list_hot_songs(self, limit: int = 10) -> SongListResponse:
-        songs = self.repo.list_hot_songs(limit)
-        items = [self._map_song(s) for s in songs]
-        return SongListResponse(items=items)
+        return self._map_songs(self.repo.list_hot_songs(limit))
 
     def list_newest_albums(self, limit: int = 10) -> AlbumListResponse:
         albums = self.repo.list_newest_albums(limit)
@@ -91,41 +148,128 @@ class MusicService:
         )
 
     def list_hot_artists(self, limit: int = 10) -> ArtistListResponse:
-        artists = self.repo.list_hot_artists(limit)
-        items = [
-            ArtistResponse(
-                id=u.id,
-                name=u.display_name,
-                followers_count=len(u.followers) if u.followers else 0, # Note: using relationship might cause N+1 query, but fine for prototype
-                avatar_url=None,
-            )
-            for u in artists
-        ]
-        return ArtistListResponse(items=items)
+        return self._map_artists(self.repo.list_hot_artists(limit))
 
     def list_newest_artists(self, limit: int = 10) -> ArtistListResponse:
-        artists = self.repo.list_newest_artists(limit)
-        items = [
-            ArtistResponse(
-                id=u.id,
-                name=u.display_name,
-                followers_count=len(u.followers) if u.followers else 0,
-                avatar_url=None,
-            )
-            for u in artists
-        ]
-        return ArtistListResponse(items=items)
+        return self._map_artists(self.repo.list_newest_artists(limit))
 
     def list_recommended_songs_for_user(self, user_id: int, limit: int = 10) -> SongListResponse:
-        songs = self.repo.list_recommended_songs_for_user(user_id=user_id, limit=limit)
-        items = [self._map_song(s) for s in songs]
-        return SongListResponse(items=items)
+        return self._map_songs(self.repo.list_recommended_songs_for_user(user_id=user_id, limit=limit))
 
     def list_my_songs(self, artist_id: int) -> SongListResponse:
         self._ensure_artist_role(artist_id)
-        songs = self.repo.list_songs_by_artist(artist_id)
-        items = [self._map_song(s) for s in songs]
-        return SongListResponse(items=items)
+        return self._map_songs(self.repo.list_songs_by_artist(artist_id))
+
+    def list_liked_songs(self, user_id: int) -> SongListResponse:
+        return self._map_songs(self.repo.list_liked_songs_for_user(user_id))
+
+    def create_playlist(self, user_id: int, payload: PlaylistCreateRequest) -> PlaylistResponse:
+        self._ensure_listener_or_artist_role(user_id)
+        name = payload.name.strip()
+        if not name:
+            raise AppException("Playlist name is required", status_code=400)
+        playlist = self.repo.create_playlist(user_id=user_id, name=name)
+        return self._map_playlist(playlist)
+
+    def list_playlists(self, user_id: int) -> PlaylistListResponse:
+        self._ensure_listener_or_artist_role(user_id)
+        playlists = self.repo.list_playlists_for_user(user_id=user_id)
+        return PlaylistListResponse(items=[self._map_playlist(playlist) for playlist in playlists])
+
+    def rename_playlist(self, user_id: int, playlist_id: int, payload: PlaylistRenameRequest) -> PlaylistResponse:
+        self._ensure_listener_or_artist_role(user_id)
+        playlist = self.repo.get_playlist_by_id_for_user(playlist_id=playlist_id, user_id=user_id)
+        if playlist is None:
+            raise AppException("Playlist not found", status_code=404)
+        name = payload.name.strip()
+        if not name:
+            raise AppException("Playlist name is required", status_code=400)
+        updated = self.repo.rename_playlist(playlist, new_name=name)
+        return self._map_playlist(updated)
+
+    def delete_playlist(self, user_id: int, playlist_id: int) -> None:
+        self._ensure_listener_or_artist_role(user_id)
+        playlist = self.repo.get_playlist_by_id_for_user(playlist_id=playlist_id, user_id=user_id)
+        if playlist is None:
+            raise AppException("Playlist not found", status_code=404)
+        self.repo.delete_playlist(playlist)
+
+    def add_song_to_playlist(self, user_id: int, playlist_id: int, payload: PlaylistAddSongRequest) -> PlaylistResponse:
+        self._ensure_listener_or_artist_role(user_id)
+        playlist = self.repo.get_playlist_by_id_for_user(playlist_id=playlist_id, user_id=user_id)
+        if playlist is None:
+            raise AppException("Playlist not found", status_code=404)
+        song = self.repo.get_song_by_id(payload.song_id)
+        if song is None:
+            raise AppException("Song not found", status_code=404)
+        self.repo.add_song_to_playlist(playlist, song_id=payload.song_id)
+        refreshed = self.repo.get_playlist_by_id_for_user(playlist_id=playlist_id, user_id=user_id)
+        if refreshed is None:
+            raise AppException("Playlist not found", status_code=404)
+        return self._map_playlist(refreshed)
+
+    def remove_song_from_playlist(self, user_id: int, playlist_id: int, song_id: int) -> PlaylistResponse:
+        self._ensure_listener_or_artist_role(user_id)
+        playlist = self.repo.get_playlist_by_id_for_user(playlist_id=playlist_id, user_id=user_id)
+        if playlist is None:
+            raise AppException("Playlist not found", status_code=404)
+        removed = self.repo.remove_song_from_playlist(playlist, song_id=song_id)
+        if not removed:
+            raise AppException("Song is not in this playlist", status_code=404)
+        refreshed = self.repo.get_playlist_by_id_for_user(playlist_id=playlist_id, user_id=user_id)
+        if refreshed is None:
+            raise AppException("Playlist not found", status_code=404)
+        return self._map_playlist(refreshed)
+
+    def list_feed_songs(self, user_id: int, limit: int = 20) -> SongListResponse:
+        return self._map_songs(self.repo.list_feed_songs_for_user(user_id=user_id, limit=limit))
+
+    def record_listen_event(self, user_id: int, song_id: int) -> None:
+        song = self.repo.get_song_by_id(song_id)
+        if song is None:
+            raise AppException("Song not found", status_code=404)
+        self.repo.create_listen_event(user_id=user_id, song_id=song_id)
+
+    def update_my_song(
+        self,
+        *,
+        artist_id: int,
+        song_id: int,
+        title: str | None = None,
+        genre: str | None = None,
+        cover_bytes: bytes | None = None,
+        cover_filename: str | None = None,
+        cover_content_type: str | None = None,
+    ) -> SongResponse:
+        self._ensure_artist_role(artist_id)
+        song = self.repo.get_song_by_id(song_id)
+        if song is None:
+            raise AppException("Song not found", status_code=404)
+        if song.artist_id != artist_id:
+            raise AppException("You can only edit your own songs", status_code=403)
+
+        if cover_bytes is not None:
+            if song.album is None:
+                raise AppException("Song cover can only be updated when the song belongs to an album", status_code=400)
+            _, cover_url = self.upload_service._upload_payload(
+                data=cover_bytes,
+                filename=cover_filename,
+                prefix="covers",
+                artist_id=artist_id,
+                content_type=cover_content_type,
+                empty_error="Cover image is empty",
+            )
+            self.repo.update_album_cover(song.album, cover_url)
+
+        updated_song = self.repo.update_song(
+            song,
+            title=title.strip() if title is not None else None,
+            genre=genre.strip() if genre is not None else None,
+        )
+        return self._map_song(updated_song)
+
+    def list_genre_fallback_songs_for_new_user(self, limit: int = 10) -> SongListResponse:
+        return self._map_songs(self.repo.list_genre_fallback_songs_for_new_user(limit=limit))
 
     def delete_my_song(self, artist_id: int, song_id: int) -> None:
         self._ensure_artist_role(artist_id)
@@ -134,20 +278,35 @@ class MusicService:
             raise AppException("Song not found", status_code=404)
         if song.artist_id != artist_id:
             raise AppException("You can only delete your own songs", status_code=403)
-        album_id = song.album_id
-        self.repo.delete_song(song)
-        if album_id is not None and self.repo.count_songs_in_album(album_id) == 0:
-            self.repo.delete_album_by_id(album_id)
+        self._delete_song_and_cleanup_album(song)
 
     def delete_song_as_admin(self, admin_id: int, song_id: int) -> None:
         self._ensure_admin_role(admin_id)
         song = self.repo.get_song_by_id(song_id)
         if song is None:
             raise AppException("Song not found", status_code=404)
-        album_id = song.album_id
-        self.repo.delete_song(song)
-        if album_id is not None and self.repo.count_songs_in_album(album_id) == 0:
-            self.repo.delete_album_by_id(album_id)
+        self._delete_song_and_cleanup_album(song)
+
+    def get_artist_analytics(self, artist_id: int) -> ArtistAnalyticsResponse:
+        self._ensure_artist_role(artist_id)
+        data = self.repo.get_artist_analytics(artist_id)
+        return ArtistAnalyticsResponse(
+            artist_id=int(data["artist_id"]),
+            artist_name=str(data["artist_name"]),
+            follower_count=int(data["follower_count"]),
+            total_songs=int(data["total_songs"]),
+            total_plays=int(data["total_plays"]),
+            top_songs=[
+                SongPlayStat(
+                    id=item["id"],
+                    title=item["title"],
+                    genre=item["genre"],
+                    play_count=item["play_count"],
+                    like_count=item["like_count"],
+                )
+                for item in data["top_songs"]
+            ],
+        )
 
     def create_song(self, payload: SongCreateRequest, artist_id: int) -> SongResponse:
         song = self.repo.create_song(
@@ -171,36 +330,18 @@ class MusicService:
         cover_filename: str | None = None,
         cover_content_type: str | None = None,
     ) -> SongResponse:
-        date_prefix = datetime.utcnow().strftime("%Y%m%d")
-        audio_ext = audio_filename.rsplit(".", 1)[-1].lower() if "." in audio_filename else "bin"
-        audio_key = f"songs/{artist_id}/{date_prefix}/{uuid4().hex}.{audio_ext}"
-        upload_bytes(audio_bytes, audio_key, audio_content_type)
-
-        album_id: int | None = None
-        if album_title and album_title.strip():
-            cover_url: str | None = None
-            if cover_bytes:
-                cover_name = cover_filename or "cover.jpg"
-                cover_ext = cover_name.rsplit(".", 1)[-1].lower() if "." in cover_name else "jpg"
-                cover_key = f"covers/{artist_id}/{date_prefix}/{uuid4().hex}.{cover_ext}"
-                upload_bytes(cover_bytes, cover_key, cover_content_type)
-                cover_url = get_public_file_url(cover_key)
-
-            album = self.repo.get_or_create_album(
-                title=album_title,
-                artist_id=artist_id,
-                cover_url=cover_url,
-            )
-            album_id = album.id
-
-        song = self.repo.create_song(
-            title=title.strip(),
+        return self.upload_service.create_song_with_files(
+            title=title,
             genre=genre,
             artist_id=artist_id,
-            file_key=audio_key,
-            album_id=album_id,
+            audio_bytes=audio_bytes,
+            audio_filename=audio_filename,
+            audio_content_type=audio_content_type,
+            album_title=album_title,
+            cover_bytes=cover_bytes,
+            cover_filename=cover_filename,
+            cover_content_type=cover_content_type,
         )
-        return self._map_song(song)
 
     def create_uploaded_songs(
         self,
@@ -216,100 +357,14 @@ class MusicService:
         cover_file: UploadFile | None = None,
     ) -> SongListResponse:
         self._ensure_artist_role(artist_id)
-
-        cover_bytes: bytes | None = None
-        cover_filename: str | None = None
-        cover_content_type: str | None = None
-        if cover_file is not None:
-            cover_bytes = cover_file.file.read()
-            if cover_bytes:
-                cover_filename = cover_file.filename or "cover.jpg"
-                cover_content_type = cover_file.content_type
-
-        uploaded_songs = []
-
-        if upload_type == "album":
-            if not album_title or not album_title.strip():
-                raise AppException("Album title is required for album uploads", status_code=400)
-            if not cover_bytes:
-                raise AppException("Album cover is required for album uploads", status_code=400)
-            files = audio_files or []
-            if not files:
-                raise AppException("Please select at least one audio file for the album", status_code=400)
-
-            date_prefix = datetime.utcnow().strftime("%Y%m%d")
-            cover_name = cover_filename or "cover.jpg"
-            cover_ext = cover_name.rsplit(".", 1)[-1].lower() if "." in cover_name else "jpg"
-            cover_key = f"covers/{artist_id}/{date_prefix}/{uuid4().hex}.{cover_ext}"
-            upload_bytes(cover_bytes, cover_key, cover_content_type)
-            cover_url = get_public_file_url(cover_key)
-
-            album = self.repo.get_or_create_album(
-                title=album_title.strip(),
-                artist_id=artist_id,
-                cover_url=cover_url,
-            )
-
-            for index, file_item in enumerate(files):
-                audio_bytes = file_item.file.read()
-                if not audio_bytes:
-                    continue
-                file_name = file_item.filename or "audio.bin"
-                audio_ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else "bin"
-                audio_key = f"songs/{artist_id}/{date_prefix}/{uuid4().hex}.{audio_ext}"
-                upload_bytes(audio_bytes, audio_key, file_item.content_type)
-                provided_title = None
-                if track_titles and index < len(track_titles):
-                    provided_title = track_titles[index].strip() or None
-                song_title = provided_title or file_name.rsplit(".", 1)[0].strip() or album_title.strip()
-                song = self.repo.create_song(
-                    title=song_title,
-                    genre=genre,
-                    artist_id=artist_id,
-                    file_key=audio_key,
-                    album_id=album.id,
-                )
-                uploaded_songs.append(self._map_song(song))
-
-            if not uploaded_songs:
-                raise AppException("All selected album files were empty", status_code=400)
-
-            return SongListResponse(items=uploaded_songs)
-
-        if not title or not title.strip():
-            raise AppException("Song title is required for single uploads", status_code=400)
-        if audio_file is None:
-            raise AppException("Audio file is required", status_code=400)
-        if not cover_bytes:
-            raise AppException("Cover image is required for single uploads", status_code=400)
-
-        audio_bytes = audio_file.file.read()
-        if not audio_bytes:
-            raise AppException("Audio file is empty", status_code=400)
-
-        date_prefix = datetime.utcnow().strftime("%Y%m%d")
-        cover_name = cover_filename or "cover.jpg"
-        cover_ext = cover_name.rsplit(".", 1)[-1].lower() if "." in cover_name else "jpg"
-        cover_key = f"covers/{artist_id}/{date_prefix}/{uuid4().hex}.{cover_ext}"
-        upload_bytes(cover_bytes, cover_key, cover_content_type)
-
-        audio_name = audio_file.filename or "audio.bin"
-        audio_ext = audio_name.rsplit(".", 1)[-1].lower() if "." in audio_name else "bin"
-        audio_key = f"songs/{artist_id}/{date_prefix}/{uuid4().hex}.{audio_ext}"
-        upload_bytes(audio_bytes, audio_key, audio_file.content_type)
-
-        album = self.repo.get_or_create_album(
-            title=album_title.strip() if album_title and album_title.strip() else title.strip(),
-            artist_id=artist_id,
-            cover_url=get_public_file_url(cover_key),
-        )
-
-        song = self.repo.create_song(
-            title=title.strip(),
+        return self.upload_service.create_uploaded_songs(
+            upload_type=upload_type,
+            title=title,
             genre=genre,
             artist_id=artist_id,
-            file_key=audio_key,
-            album_id=album.id,
+            track_titles=track_titles,
+            audio_file=audio_file,
+            audio_files=audio_files,
+            album_title=album_title,
+            cover_file=cover_file,
         )
-        uploaded_songs.append(self._map_song(song))
-        return SongListResponse(items=uploaded_songs)

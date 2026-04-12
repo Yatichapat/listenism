@@ -3,26 +3,69 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getAccessToken } from "@/services/api/auth";
-import { likeSong, reportSong, unlikeSong } from "@/services/api/social";
+import { recordSongListen } from "@/services/api/music";
+import { commentSong, isSongLikedInStorage, likeSong, listComments, markSongAsLiked, reportSong, unlikeSong, type CommentItem } from "@/services/api/social";
 import { type SongProps } from "@/types/songs";
+import CommentDrawer from "@/app/components/CommentDrawer";
+import SaveToPlaylistDropdown from "@/app/components/SaveToPlaylistDropdown";
 
 const FALLBACK_COVER = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><rect width="400" height="400" rx="36" fill="#0f172a"/><circle cx="200" cy="152" r="64" fill="rgba(255,255,255,0.08)"/><rect x="100" y="250" width="200" height="18" rx="9" fill="#e2e8f0" fill-opacity="0.9"/><rect x="128" y="282" width="144" height="12" rx="6" fill="#e2e8f0" fill-opacity="0.55"/></svg>`,
 )} `;
 
+const LIKED_SONGS_CHANGED_EVENT = "listenism-liked-songs-changed";
 
 
-export default function Song({ id, title, artistName, genre, audioUrl, coverUrl, viewCount = 0, likeCount = 0 }: SongProps) {
+
+export default function Song({
+  id,
+  title,
+  artistName,
+  genre,
+  audioUrl,
+  coverUrl,
+  viewCount = 0,
+  likeCount = 0,
+  isLiked: initialIsLiked,
+  // Controlled drawer props (provided by SongList)
+  drawerOpen: controlledDrawerOpen,
+  onOpenDrawer,
+  onCloseDrawer,
+  onPrev,
+  onNext,
+}: SongProps & {
+  drawerOpen?: boolean;
+  onOpenDrawer?: () => void;
+  onCloseDrawer?: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
+}) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  // Initialize only from the server-provided prop so SSR and client render match.
+  // The syncLikedState effect below will reconcile with localStorage after hydration.
+  const [isLiked, setIsLiked] = useState(() => Boolean(initialIsLiked));
+  const [likeDelta, setLikeDelta] = useState(0);
   const [liking, setLiking] = useState(false);
   const [reporting, setReporting] = useState(false);
   const [reported, setReported] = useState(false);
+  const [listenRecorded, setListenRecorded] = useState(false);
+  const [commenting, setCommenting] = useState(false);
+  // When controlled drawer props are provided, use them; otherwise manage locally.
+  const [localDrawerOpen, setLocalDrawerOpen] = useState(false);
+  const commentOpen = controlledDrawerOpen ?? localDrawerOpen;
+  const openDrawer = () => { onOpenDrawer ? onOpenDrawer() : setLocalDrawerOpen(true); };
+  const closeDrawer = () => { onCloseDrawer ? onCloseDrawer() : setLocalDrawerOpen(false); };
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commented, setCommented] = useState(false);
+  const [comments, setComments] = useState<CommentItem[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
-  const displayedLikeCount = likeCount + (isLiked ? 1 : 0);
+  const displayedLikeCount = likeCount + likeDelta;
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -33,18 +76,83 @@ export default function Song({ id, title, artistName, genre, audioUrl, coverUrl,
     const handlePause = () => setIsPlaying(false);
     const handlePlay = () => setIsPlaying(true);
     const handleEnd = () => setIsPlaying(false);
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const handleDurationChange = () => setDuration(audio.duration || 0);
 
     audio.addEventListener("pause", handlePause);
     audio.addEventListener("play", handlePlay);
     audio.addEventListener("ended", handleEnd);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("durationchange", handleDurationChange);
 
     return () => {
       audio.pause();
       audio.removeEventListener("pause", handlePause);
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("ended", handleEnd);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("durationchange", handleDurationChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (initialIsLiked) {
+      markSongAsLiked(id);
+    }
+  }, [id, initialIsLiked]);
+
+  useEffect(() => {
+    function syncLikedState() {
+      const nextLiked = isSongLikedInStorage(id);
+      setIsLiked((currentLiked) => {
+        if (currentLiked === nextLiked) {
+          return currentLiked;
+        }
+
+        setLikeDelta((currentDelta) => currentDelta + (nextLiked ? 1 : -1));
+        return nextLiked;
+      });
+    }
+
+    syncLikedState();
+    window.addEventListener(LIKED_SONGS_CHANGED_EVENT, syncLikedState);
+
+    return () => {
+      window.removeEventListener(LIKED_SONGS_CHANGED_EVENT, syncLikedState);
+    };
+  }, [id]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadComments() {
+      if (!commentOpen) {
+        return;
+      }
+
+      setCommentsLoading(true);
+      try {
+        const nextComments = await listComments(id);
+        if (mounted) {
+          setComments(nextComments);
+        }
+      } catch {
+        if (mounted) {
+          setComments([]);
+        }
+      } finally {
+        if (mounted) {
+          setCommentsLoading(false);
+        }
+      }
+    }
+
+    void loadComments();
+
+    return () => {
+      mounted = false;
+    };
+  }, [commentOpen, id]);
 
   async function onTogglePlay() {
     const audio = audioRef.current;
@@ -55,6 +163,17 @@ export default function Song({ id, title, artistName, genre, audioUrl, coverUrl,
     if (audio.paused) {
       try {
         await audio.play();
+        if (!listenRecorded) {
+          const token = getAccessToken();
+          if (token) {
+            try {
+              await recordSongListen(token, id);
+              setListenRecorded(true);
+            } catch {
+              // Ignore analytics failures and keep playback responsive.
+            }
+          }
+        }
       } catch {
         setIsPlaying(false);
       }
@@ -63,6 +182,13 @@ export default function Song({ id, title, artistName, genre, audioUrl, coverUrl,
 
     audio.pause();
     setIsPlaying(false);
+  }
+
+  function onSeek(time: number) {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = time;
+    setCurrentTime(time);
   }
 
   async function onReportSong() {
@@ -91,7 +217,10 @@ export default function Song({ id, title, artistName, genre, audioUrl, coverUrl,
     }
 
     const nextLiked = !isLiked;
+    const previousLiked = isLiked;
+    const previousLikeDelta = likeDelta;
     setIsLiked(nextLiked);
+    setLikeDelta((currentDelta) => currentDelta + (nextLiked ? 1 : -1));
     setLiking(true);
 
     try {
@@ -101,14 +230,45 @@ export default function Song({ id, title, artistName, genre, audioUrl, coverUrl,
         await unlikeSong(token, id);
       }
     } catch {
-      setIsLiked(!nextLiked);
+      setIsLiked(previousLiked);
+      setLikeDelta(previousLikeDelta);
     } finally {
       setLiking(false);
     }
   }
 
+  async function onSubmitComment() {
+    const token = getAccessToken();
+    if (!token) {
+      const redirectPath = pathname || "/";
+      router.push(`/login?redirect=${encodeURIComponent(redirectPath)}`);
+      return;
+    }
+
+    const trimmedComment = commentDraft.trim();
+    if (!trimmedComment || commenting) {
+      return;
+    }
+
+    setCommenting(true);
+    try {
+      await commentSong(token, id, trimmedComment);
+      setCommented(true);
+      setCommentDraft("");
+      const nextComments = await listComments(id);
+      setComments(nextComments);
+    } catch {
+      // Keep the card responsive if comment submission fails.
+    } finally {
+      setCommenting(false);
+    }
+  }
+
   return (
-    <article className="group flex w-48 shrink-0 snap-start flex-col gap-3 transition-transform hover:-translate-y-1">
+    <article
+      className="group flex w-48 shrink-0 snap-start flex-col gap-3 transition-transform hover:-translate-y-1 cursor-pointer"
+      onClick={openDrawer}
+    >
       <div className="relative aspect-square w-full overflow-hidden rounded-xl shadow-md transition-shadow group-hover:shadow-xl group-hover:shadow-indigo-500/20">
         <img
           src={coverUrl || FALLBACK_COVER}
@@ -119,8 +279,8 @@ export default function Song({ id, title, artistName, genre, audioUrl, coverUrl,
           }}
         />
         <div className={`absolute inset-0 bg-black/40 ${isPlaying ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300 group-hover:opacity-100 flex items-center justify-center backdrop-blur-[2px]`}>
-          <button 
-           onClick={onTogglePlay}
+          <button
+           onClick={(e) => { e.stopPropagation(); void onTogglePlay(); }}
            disabled={!audioUrl}
            className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500 text-white shadow-lg shadow-blue-500/40 hover:scale-105 transition-transform disabled:opacity-50 cursor-pointer">
             {isPlaying ? (
@@ -141,14 +301,14 @@ export default function Song({ id, title, artistName, genre, audioUrl, coverUrl,
            <p className="truncate text-sm text-slate-500 dark:text-slate-400">{artistName}</p>
           <div className="flex items-center gap-2">
             <button
-              onClick={onReportSong}
+              onClick={(e) => { e.stopPropagation(); void onReportSong(); }}
               disabled={reporting || reported}
               className="rounded-md border border-amber-200/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-500/40 dark:text-amber-300"
             >
               {reported ? "Reported" : reporting ? "Reporting" : "Report"}
             </button>
             <button
-              onClick={onToggleLike}
+              onClick={(e) => { e.stopPropagation(); void onToggleLike(); }}
               disabled={liking}
               className={`transition-colors ${isLiked ? "text-rose-500 drop-shadow-md cursor-pointer" : "text-slate-400 hover:text-slate-300 dark:text-slate-500 dark:hover:text-slate-400 cursor-pointer"} disabled:cursor-not-allowed disabled:opacity-60`}
             >
@@ -156,9 +316,35 @@ export default function Song({ id, title, artistName, genre, audioUrl, coverUrl,
                   <path d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0 1 12 5.052 5.5 5.5 0 0 1 16.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z" />
                 </svg>
             </button>
+            <div onClick={(e) => e.stopPropagation()}>
+              <SaveToPlaylistDropdown songId={id} />
+            </div>
           </div>
         </div>
       </div>
+
+      <CommentDrawer
+        open={commentOpen}
+        onClose={closeDrawer}
+        songTitle={title}
+        artistName={artistName}
+        coverUrl={coverUrl ?? undefined}
+        isPlaying={isPlaying}
+        hasAudio={Boolean(audioUrl)}
+        currentTime={currentTime}
+        duration={duration}
+        onTogglePlay={() => void onTogglePlay()}
+        onSeek={onSeek}
+        onPrev={onPrev}
+        onNext={onNext}
+        commentDraft={commentDraft}
+        onCommentDraftChange={setCommentDraft}
+        onSubmitComment={() => void onSubmitComment()}
+        commenting={commenting}
+        commented={commented}
+        comments={comments}
+        commentsLoading={commentsLoading}
+      />
 
       {audioUrl ? (
         <audio ref={audioRef} src={audioUrl} preload="none" className="hidden" aria-label={`song-${id}`} />

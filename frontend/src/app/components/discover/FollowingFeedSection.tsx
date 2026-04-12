@@ -4,17 +4,17 @@ import { useEffect, useState } from "react";
 import SectionLayout from "@/app/components/discover/SectionLayout";
 import SongList from "@/app/components/SongList";
 import { getAccessToken } from "@/services/api/auth";
-import { listAIRecommendedSongs, listGenreFallbackSongs } from "@/services/api/music";
+import { listFollowingFeedSongs } from "@/services/api/music";
 import { type Song as SongType } from "@/types/songs";
 
-export default function RecommendedSongsSection() {
+export default function FollowingFeedSection() {
   const [songs, setSongs] = useState<SongType[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
 
-    async function loadRecommendations() {
+    async function loadFeed() {
       const token = getAccessToken();
       if (!token) {
         setLoading(false);
@@ -22,15 +22,12 @@ export default function RecommendedSongsSection() {
       }
 
       try {
-        let recommendedSongs = await listAIRecommendedSongs(token, 10);
-        if (recommendedSongs.length === 0) {
-          recommendedSongs = await listGenreFallbackSongs(token, 10);
-        }
+        const feedSongs = await listFollowingFeedSongs(token, 10);
         if (mounted) {
-          setSongs(recommendedSongs);
+          setSongs(feedSongs);
         }
       } catch (error) {
-        console.error("Failed to load personalized songs:", error);
+        console.error("Failed to load following feed:", error);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -38,7 +35,7 @@ export default function RecommendedSongsSection() {
       }
     }
 
-    loadRecommendations();
+    void loadFeed();
 
     return () => {
       mounted = false;
@@ -50,15 +47,8 @@ export default function RecommendedSongsSection() {
   }
 
   return (
-    <SectionLayout
-      title="Recommended For You"
-      subtitle="Personalized by recommendation signals"
-    >
-      <SongList
-        songs={songs}
-        viewCountFn={(song) => song.view_count ?? 300 + (song.id % 7) * 337}
-        likeCountFn={(song) => song.like_count ?? 30 + (song.id % 5) * 41}
-      />
+    <SectionLayout title="Following Feed" subtitle="Songs from artists you follow">
+      <SongList songs={songs} />
     </SectionLayout>
   );
 }

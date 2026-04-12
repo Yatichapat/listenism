@@ -6,6 +6,8 @@ from app.modules.social.repository import SocialRepository
 from app.modules.social.schemas import (
     ActionResponse,
     CommentRequest,
+    CommentItem,
+    CommentListResponse,
     FollowRequest,
     LikeRequest,
     SongReportItem,
@@ -47,6 +49,21 @@ class SocialService:
     def comment_song(self, user_id: int, payload: CommentRequest) -> ActionResponse:
         self.repo.comment_song(user_id, payload.song_id, payload.content)
         return ActionResponse(message="Comment added")
+
+    def list_comments(self, song_id: int) -> CommentListResponse:
+        rows = self.repo.list_comments_for_song(song_id)
+        items = [
+            CommentItem(
+                id=comment.id,
+                song_id=comment.song_id,
+                user_id=comment.user_id,
+                user_name=user_name,
+                content=comment.content,
+                created_at=comment.created_at,
+            )
+            for comment, user_name in rows
+        ]
+        return CommentListResponse(items=items)
 
     def report_song(self, user_id: int, payload: SongReportRequest) -> ActionResponse:
         self.repo.report_song(user_id, payload.song_id, payload.reason)

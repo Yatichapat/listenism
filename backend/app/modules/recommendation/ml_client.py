@@ -9,11 +9,11 @@ class MLClient:
 	def __init__(self) -> None:
 		self.base_url = settings.ml_service_url.rstrip("/")
 
-	def get_recommendations(self, user_id: int) -> list[dict[str, Any]]:
+	def get_recommendations(self, user_id: int, limit: int = 10) -> list[dict[str, Any]]:
 		try:
 			response = httpx.get(
 				f"{self.base_url}/recommend",
-				params={"user_id": user_id},
+				params={"user_id": user_id, "n": limit},
 				timeout=3,
 			)
 			response.raise_for_status()
@@ -23,8 +23,4 @@ class MLClient:
 		except Exception:
 			pass
 
-		return [
-			{"song_id": 1, "score": 0.92},
-			{"song_id": 2, "score": 0.87},
-			{"song_id": 3, "score": 0.79},
-		]
+		return []

@@ -41,3 +41,15 @@ class Comment(Base):
 
     user: Mapped["User"] = relationship("User", back_populates="comments")  # noqa: F821
     song: Mapped["Song"] = relationship("Song", back_populates="comments")  # noqa: F821
+
+
+class ListenEvent(Base):
+    __tablename__ = "listen_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    song_id: Mapped[int] = mapped_column(Integer, ForeignKey("songs.id", ondelete="CASCADE"), nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship("User")  # noqa: F821
+    song: Mapped["Song"] = relationship("Song")  # noqa: F821
