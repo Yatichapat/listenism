@@ -6,6 +6,7 @@ from app.modules.social.repository import SocialRepository
 from app.modules.social.schemas import (
     ActionResponse,
     CommentRequest,
+    CommentUpdateRequest,
     CommentItem,
     CommentListResponse,
     FollowRequest,
@@ -64,6 +65,18 @@ class SocialService:
             for comment, user_name in rows
         ]
         return CommentListResponse(items=items)
+
+    def update_comment(self, user_id: int, comment_id: int, payload: CommentUpdateRequest) -> ActionResponse:
+        content = payload.content.strip()
+        if not content:
+            raise AppException("Comment content is required", status_code=400)
+
+        self.repo.update_comment(user_id=user_id, comment_id=comment_id, content=content)
+        return ActionResponse(message="Comment updated")
+
+    def delete_comment(self, user_id: int, comment_id: int) -> ActionResponse:
+        self.repo.delete_comment(user_id=user_id, comment_id=comment_id)
+        return ActionResponse(message="Comment deleted")
 
     def report_song(self, user_id: int, payload: SongReportRequest) -> ActionResponse:
         self.repo.report_song(user_id, payload.song_id, payload.reason)

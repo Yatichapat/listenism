@@ -57,6 +57,25 @@ class SocialRepository:
         ).all()
         return [(comment, user_name) for comment, user_name in rows]
 
+    def _get_owned_comment(self, user_id: int, comment_id: int) -> Comment:
+        comment = self.db.scalar(select(Comment).where(Comment.id == comment_id))
+        if comment is None:
+            raise AppException("Comment not found", status_code=404)
+        if comment.user_id != user_id:
+            raise AppException("You can only modify your own comments", status_code=403)
+        return comment
+
+    def update_comment(self, user_id: int, comment_id: int, content: str) -> None:
+        comment = self._get_owned_comment(user_id=user_id, comment_id=comment_id)
+        comment.content = content
+        self.db.add(comment)
+        self.db.commit()
+
+    def delete_comment(self, user_id: int, comment_id: int) -> None:
+        comment = self._get_owned_comment(user_id=user_id, comment_id=comment_id)
+        self.db.delete(comment)
+        self.db.commit()
+
     def report_song(self, reporter_id: int, song_id: int, reason: str | None) -> None:
         song_exists = self.db.scalar(select(Song.id).where(Song.id == song_id))
         if song_exists is None:

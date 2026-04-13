@@ -2,9 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { getAccessToken } from "@/services/api/auth";
+import { getAccessToken, me } from "@/services/api/auth";
 import { recordSongListen } from "@/services/api/music";
-import { commentSong, isSongLikedInStorage, likeSong, listComments, markSongAsLiked, reportSong, unlikeSong, type CommentItem } from "@/services/api/social";
+import {
+  commentSong,
+  deleteComment,
+  isSongLikedInStorage,
+  likeSong,
+  listComments,
+  markSongAsLiked,
+  reportSong,
+  unlikeSong,
+  updateComment,
+  type CommentItem,
+} from "@/services/api/social";
 import { type SongProps } from "@/types/songs";
 import CommentDrawer from "@/app/components/CommentDrawer";
 import SaveToPlaylistDropdown from "@/app/components/SaveToPlaylistDropdown";
@@ -61,6 +72,10 @@ export default function Song({
   const [commented, setCommented] = useState(false);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [commentActionBusy, setCommentActionBusy] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const router = useRouter();
   const pathname = usePathname();
@@ -132,13 +147,19 @@ export default function Song({
 
       setCommentsLoading(true);
       try {
-        const nextComments = await listComments(id);
+        const token = getAccessToken();
+        const [nextComments, profile] = await Promise.all([
+          listComments(id),
+          token ? me(token).catch(() => null) : Promise.resolve(null),
+        ]);
         if (mounted) {
           setComments(nextComments);
+          setCurrentUserId(profile?.id ?? null);
         }
       } catch {
         if (mounted) {
           setComments([]);
+          setCurrentUserId(null);
         }
       } finally {
         if (mounted) {
@@ -153,6 +174,19 @@ export default function Song({
       mounted = false;
     };
   }, [commentOpen, id]);
+
+  useEffect(() => {
+    if (!commentOpen) {
+      setEditingCommentId(null);
+      setEditDraft("");
+      setCommentActionBusy(false);
+    }
+  }, [commentOpen]);
+
+  async function refreshComments(): Promise<void> {
+    const nextComments = await listComments(id);
+    setComments(nextComments);
+  }
 
   async function onTogglePlay() {
     const audio = audioRef.current;
@@ -255,12 +289,68 @@ export default function Song({
       await commentSong(token, id, trimmedComment);
       setCommented(true);
       setCommentDraft("");
-      const nextComments = await listComments(id);
-      setComments(nextComments);
+      await refreshComments();
     } catch {
       // Keep the card responsive if comment submission fails.
     } finally {
       setCommenting(false);
+    }
+  }
+
+  function onStartEditComment(comment: CommentItem): void {
+    setEditingCommentId(comment.id);
+    setEditDraft(comment.content);
+  }
+
+  function onCancelEditComment(): void {
+    setEditingCommentId(null);
+    setEditDraft("");
+  }
+
+  async function onSaveEditedComment(): Promise<void> {
+    if (!editingCommentId) {
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token || commentActionBusy) {
+      return;
+    }
+
+    const trimmed = editDraft.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    setCommentActionBusy(true);
+    try {
+      await updateComment(token, editingCommentId, trimmed);
+      await refreshComments();
+      onCancelEditComment();
+    } catch {
+      // Keep UX non-blocking on API errors.
+    } finally {
+      setCommentActionBusy(false);
+    }
+  }
+
+  async function onDeleteExistingComment(commentId: number): Promise<void> {
+    const token = getAccessToken();
+    if (!token || commentActionBusy) {
+      return;
+    }
+
+    setCommentActionBusy(true);
+    try {
+      await deleteComment(token, commentId);
+      await refreshComments();
+      if (editingCommentId === commentId) {
+        onCancelEditComment();
+      }
+    } catch {
+      // Keep UX non-blocking on API errors.
+    } finally {
+      setCommentActionBusy(false);
     }
   }
 
@@ -344,6 +434,15 @@ export default function Song({
         commented={commented}
         comments={comments}
         commentsLoading={commentsLoading}
+        currentUserId={currentUserId}
+        editingCommentId={editingCommentId}
+        editDraft={editDraft}
+        commentActionBusy={commentActionBusy}
+        onStartEditComment={onStartEditComment}
+        onCancelEditComment={onCancelEditComment}
+        onEditDraftChange={setEditDraft}
+        onSaveEditedComment={() => void onSaveEditedComment()}
+        onDeleteComment={(commentId) => void onDeleteExistingComment(commentId)}
       />
 
       {audioUrl ? (

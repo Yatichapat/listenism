@@ -16,6 +16,10 @@ class CommentRequest(BaseModel):
 	content: str
 
 
+class CommentUpdateRequest(BaseModel):
+	content: str
+
+
 class CommentItem(BaseModel):
 	id: int
 	song_id: int

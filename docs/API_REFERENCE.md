@@ -159,6 +159,11 @@ Requires authentication and artist access.
 
 Requires authentication. Returns the current user’s liked songs.
 
+Notes:
+- This endpoint is the source of truth for the "Liked Songs" collection.
+- "Liked Songs" is not created through `POST /music/playlists` and is not returned by `GET /music/playlists`.
+- In the frontend, it may be rendered like a playlist card, but it remains backed by the likes system.
+
 ### Create playlist
 `POST /music/playlists`
 
@@ -171,10 +176,42 @@ Request body:
 }
 ```
 
+Returns the created playlist object in the same shape as `GET /music/playlists` items.
+
 ### List my playlists
 `GET /music/playlists`
 
 Requires authentication. Only `listener` and `artist` roles are allowed.
+
+Response:
+```json
+{
+  "items": [
+    {
+      "id": 12,
+      "user_id": 3,
+      "name": "Road Trip",
+      "created_at": "2026-04-12T09:30:00Z",
+      "songs": [
+        {
+          "id": 99,
+          "title": "Night Drive",
+          "artist_name": "Artist Name",
+          "genre": "synthwave",
+          "audio_url": "https://...",
+          "cover_url": null,
+          "like_count": 10,
+          "view_count": 140,
+          "created_at": "2026-04-11T19:00:00Z",
+          "artist_id": 8,
+          "album_id": null,
+          "position": 1
+        }
+      ]
+    }
+  ]
+}
+```
 
 ### Rename playlist
 `PATCH /music/playlists/{playlist_id}`
@@ -187,6 +224,8 @@ Request body:
   "name": "Late Night"
 }
 ```
+
+Returns the updated playlist object in the same shape as `GET /music/playlists` items.
 
 ### Delete playlist
 `DELETE /music/playlists/{playlist_id}`
@@ -205,46 +244,14 @@ Request body:
 }
 ```
 
+Returns the updated playlist object with songs re-indexed by `position`.
 
-  Notes:
-  - This endpoint is the source of truth for the "Liked Songs" collection.
-  - "Liked Songs" is not created through `POST /music/playlists` and is not returned by `GET /music/playlists`.
-  - In the frontend, it may be rendered like a playlist card, but it remains backed by the likes system.
 ### Remove song from playlist
 `DELETE /music/playlists/{playlist_id}/songs/{song_id}`
 
 Requires authentication. Only `listener` and `artist` roles are allowed.
 
-
-  Response:
-  ```json
-  {
-    "items": [
-      {
-        "id": 12,
-        "user_id": 3,
-        "name": "Road Trip",
-        "created_at": "2026-04-12T09:30:00Z",
-        "songs": [
-          {
-            "id": 99,
-            "title": "Night Drive",
-            "artist_name": "Artist Name",
-            "genre": "synthwave",
-            "audio_url": "https://...",
-            "cover_url": null,
-            "like_count": 10,
-            "view_count": 140,
-            "created_at": "2026-04-11T19:00:00Z",
-            "artist_id": 8,
-            "album_id": null,
-            "position": 1
-          }
-        ]
-      }
-    ]
-  }
-  ```
+Returns the updated playlist object with contiguous `position` values after removal.
 ### Newest albums
 `GET /music/albums/newest?limit=10`
 
@@ -256,8 +263,6 @@ Returns album metadata and tracks.
 ### Hot artists
 `GET /music/artists/hot?limit=10`
 
-  Returns the created playlist object in the same shape as `GET /music/playlists` items.
-
 ### Newest artists
 `GET /music/artists/newest?limit=10`
 
@@ -267,8 +272,6 @@ Returns album metadata and tracks.
 Creates a new song record.
 
 Request body:
-
-  Returns the updated playlist object in the same shape as `GET /music/playlists` items.
 ```json
 {
   "title": "Song Title",
@@ -279,15 +282,11 @@ Request body:
 
 Requires authentication and artist access.
 
-
-  Returns the updated playlist object with songs re-indexed by `position`.
 ### Upload song or album
 `POST /music/songs/upload`
 
 Multipart upload endpoint.
 
-
-  Returns the updated playlist object with contiguous `position` values after removal.
 Form fields:
 - `upload_type`: `single` or `album`
 - `title`: song title for single uploads
@@ -428,6 +427,23 @@ Response:
   ]
 }
 ```
+
+### Update my comment
+`PATCH /social/comment/{comment_id}`
+
+Requires authentication. You can only update your own comment.
+
+Request body:
+```json
+{
+  "content": "Updated comment text"
+}
+```
+
+### Delete my comment
+`DELETE /social/comment/{comment_id}`
+
+Requires authentication. You can only delete your own comment.
 
 ### Report song
 `POST /social/report/song`

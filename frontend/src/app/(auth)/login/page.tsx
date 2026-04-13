@@ -36,7 +36,7 @@ export default function LoginPage() {
         onSubmit={handleSubmit}
         className="bg-white p-8 rounded shadow-md w-full max-w-md"
       >
-        <h2 className="text-2xl font-bold mb-6 text-center">Login to Listenism</h2>
+        <h2 className="text-2xl text-gray-700 font-bold mb-6 text-center">Login to Listenism</h2>
         {error && (
           <p className="mb-4 rounded bg-red-50 px-3 py-2 text-sm text-red-600">
             {error}
@@ -52,7 +52,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 text-gray-700"
           />
         </div>
         <div className="mb-6">
@@ -65,7 +65,7 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 text-gray-700"
           />
         </div>
         <button

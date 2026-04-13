@@ -5,6 +5,7 @@ from app.infrastructure.database import get_db
 from app.modules.social.schemas import (
     ActionResponse,
     CommentRequest,
+    CommentUpdateRequest,
     CommentListResponse,
     FollowRequest,
     LikeRequest,
@@ -70,6 +71,25 @@ def list_comments(
     db: Session = Depends(get_db),
 ) -> CommentListResponse:
     return SocialService(db).list_comments(song_id=song_id)
+
+
+@router.patch("/comment/{comment_id}", response_model=ActionResponse)
+def update_comment(
+    comment_id: int,
+    payload: CommentUpdateRequest,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> ActionResponse:
+    return SocialService(db).update_comment(user_id=user_id, comment_id=comment_id, payload=payload)
+
+
+@router.delete("/comment/{comment_id}", response_model=ActionResponse)
+def delete_comment(
+    comment_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> ActionResponse:
+    return SocialService(db).delete_comment(user_id=user_id, comment_id=comment_id)
 
 
 @router.post("/report/song", response_model=ActionResponse)

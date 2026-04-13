@@ -112,6 +112,19 @@ export async function commentSong(token: string, songId: number, content: string
   });
 }
 
+export async function updateComment(token: string, commentId: number, content: string): Promise<ActionResponse> {
+  return requestWithAuth<ActionResponse>(`/api/v1/social/comment/${commentId}`, token, {
+    method: "PATCH",
+    body: JSON.stringify({ content }),
+  });
+}
+
+export async function deleteComment(token: string, commentId: number): Promise<ActionResponse> {
+  return requestWithAuth<ActionResponse>(`/api/v1/social/comment/${commentId}`, token, {
+    method: "DELETE",
+  });
+}
+
 export async function listComments(songId: number): Promise<CommentItem[]> {
   const res = await fetch(`${API_BASE}/api/v1/social/comments?song_id=${songId}`, {
     method: "GET",

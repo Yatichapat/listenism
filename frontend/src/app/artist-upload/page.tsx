@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { getAccessToken, me } from "@/services/api/auth";
 import { deleteMySong, listMySongs, updateMySong, uploadArtistSongs, type UploadMode } from "@/services/api/music";
 import { type Song } from "@/types/songs";
+import { RefreshCcw } from 'lucide-react';
 
 type AlbumTrackDraft = {
   file: File;
@@ -241,18 +242,29 @@ const UploadSongPage = () => {
           <h1 className="text-2xl font-bold">Artist Studio</h1>
           <p className="text-sm text-gray-500">{artistName ? `Signed in as ${artistName}` : "Manage your songs"}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setShowAddForm((prev) => !prev);
-            setSuccess(false);
-            setSuccessMessage("");
-            setError("");
-          }}
-          className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          {showAddForm ? "Close" : "+ Add Song"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void loadArtistData()}
+            className="rounded px-3 py-2 text-sm text-blue-500 border transition hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={songsLoading}
+            aria-label="Refresh songs"
+          >
+            {songsLoading ? "Refreshing..." : <RefreshCcw className="h-4 w-4" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowAddForm((prev) => !prev);
+              setSuccess(false);
+              setSuccessMessage("");
+              setError("");
+            }}
+            className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            {showAddForm ? "Close" : "+ Add Song"}
+          </button>
+        </div>
       </div>
 
       {showAddForm && (
@@ -409,18 +421,6 @@ const UploadSongPage = () => {
       {error && <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-red-600">{error}</div>}
       {success && <div className="mb-4 rounded border border-green-200 bg-green-50 p-3 text-green-700">{successMessage || "Upload successful!"}</div>}
 
-      <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">My Songs</h2>
-          <button
-            type="button"
-            onClick={() => void loadArtistData()}
-            className="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50"
-            disabled={songsLoading}
-          >
-            {songsLoading ? "Refreshing..." : "Refresh"}
-          </button>
-        </div>
         {songsLoading && <p className="text-sm text-gray-500">Loading your songs...</p>}
         {!songsLoading && mySongs.length === 0 && (
           <p className="text-sm text-gray-500">No songs uploaded yet. Click Add Song to upload your first track.</p>
@@ -453,7 +453,7 @@ const UploadSongPage = () => {
                     <button
                       type="button"
                       onClick={() => startEditSong(song)}
-                      className="rounded border border-blue-200 px-3 py-1 text-sm text-blue-700 hover:bg-blue-50"
+                      className="rounded border border-blue-200 px-3 py-1 text-sm text-blue-400 hover:bg-blue-50"
                     >
                       Edit
                     </button>
@@ -526,7 +526,6 @@ const UploadSongPage = () => {
             ))}
           </ul>
         )}
-      </section>
     </div>
   );
 };

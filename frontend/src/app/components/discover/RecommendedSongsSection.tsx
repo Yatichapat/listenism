@@ -22,10 +22,19 @@ export default function RecommendedSongsSection() {
       }
 
       try {
-        let recommendedSongs = await listAIRecommendedSongs(token, 10);
+        let recommendedSongs: SongType[] = [];
+
+        try {
+          recommendedSongs = await listAIRecommendedSongs(token, 10);
+        } catch (error) {
+          // Some accounts may not have AI recommendations yet; fallback below handles this case.
+          console.warn("AI recommendations unavailable, trying fallback songs:", error);
+        }
+
         if (recommendedSongs.length === 0) {
           recommendedSongs = await listGenreFallbackSongs(token, 10);
         }
+
         if (mounted) {
           setSongs(recommendedSongs);
         }
@@ -45,20 +54,28 @@ export default function RecommendedSongsSection() {
     };
   }, []);
 
-  if (loading || songs.length === 0) {
+  if (loading) {
     return null;
   }
 
   return (
     <SectionLayout
       title="Recommended For You"
-      subtitle="Personalized by recommendation signals"
+      subtitle="Personalized by recommendation signals for every role"
     >
-      <SongList
-        songs={songs}
-        viewCountFn={(song) => song.view_count ?? 300 + (song.id % 7) * 337}
-        likeCountFn={(song) => song.like_count ?? 30 + (song.id % 5) * 41}
-      />
+      {songs.length > 0 ? (
+        <SongList
+          songs={songs.map((song) => ({
+            ...song,
+            view_count: song.view_count ?? 300 + (song.id % 7) * 337,
+            like_count: song.like_count ?? 30 + (song.id % 5) * 41,
+          }))}
+        />
+      ) : (
+        <div className="rounded-xl border border-slate-200/70 bg-white/60 px-4 py-3 text-sm text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+          No recommendations yet for this account. Keep listening and interacting to improve suggestions.
+        </div>
+      )}
     </SectionLayout>
   );
 }

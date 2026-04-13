@@ -27,6 +27,15 @@ interface CommentDrawerProps {
   commented: boolean;
   comments: CommentItem[];
   commentsLoading: boolean;
+  currentUserId: number | null;
+  editingCommentId: number | null;
+  editDraft: string;
+  commentActionBusy: boolean;
+  onStartEditComment: (comment: CommentItem) => void;
+  onCancelEditComment: () => void;
+  onEditDraftChange: (value: string) => void;
+  onSaveEditedComment: () => void;
+  onDeleteComment: (commentId: number) => void;
 }
 
 function formatTime(seconds: number): string {
@@ -61,6 +70,15 @@ export default function CommentDrawer({
   commented,
   comments,
   commentsLoading,
+  currentUserId,
+  editingCommentId,
+  editDraft,
+  commentActionBusy,
+  onStartEditComment,
+  onCancelEditComment,
+  onEditDraftChange,
+  onSaveEditedComment,
+  onDeleteComment,
 }: CommentDrawerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -581,15 +599,114 @@ export default function CommentDrawer({
                         : ""}
                     </span>
                   </div>
-                  <p style={{
-                    fontSize: 13,
-                    color: "#cbd5e1",
-                    lineHeight: 1.55,
-                    margin: 0,
-                    wordBreak: "break-word",
-                  }}>
-                    {comment.content}
-                  </p>
+                  {editingCommentId === comment.id ? (
+                    <>
+                      <textarea
+                        value={editDraft}
+                        onChange={(e) => onEditDraftChange(e.target.value)}
+                        rows={3}
+                        style={{
+                          width: "100%",
+                          resize: "vertical",
+                          borderRadius: 8,
+                          border: "1px solid rgba(99,102,241,0.35)",
+                          background: "rgba(255,255,255,0.06)",
+                          color: "#f1f5f9",
+                          fontSize: 13,
+                          padding: "8px 10px",
+                          outline: "none",
+                          boxSizing: "border-box",
+                          fontFamily: "inherit",
+                        }}
+                      />
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+                        <button
+                          type="button"
+                          onClick={onCancelEditComment}
+                          disabled={commentActionBusy}
+                          style={{
+                            border: "1px solid rgba(148,163,184,0.35)",
+                            background: "transparent",
+                            color: "#cbd5e1",
+                            borderRadius: 7,
+                            padding: "6px 10px",
+                            fontSize: 12,
+                            cursor: commentActionBusy ? "not-allowed" : "pointer",
+                            opacity: commentActionBusy ? 0.6 : 1,
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={onSaveEditedComment}
+                          disabled={commentActionBusy || !editDraft.trim()}
+                          style={{
+                            border: "none",
+                            background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+                            color: "#fff",
+                            borderRadius: 7,
+                            padding: "6px 10px",
+                            fontSize: 12,
+                            cursor: commentActionBusy || !editDraft.trim() ? "not-allowed" : "pointer",
+                            opacity: commentActionBusy || !editDraft.trim() ? 0.6 : 1,
+                          }}
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p style={{
+                        fontSize: 13,
+                        color: "#cbd5e1",
+                        lineHeight: 1.55,
+                        margin: 0,
+                        wordBreak: "break-word",
+                      }}>
+                        {comment.content}
+                      </p>
+                      {currentUserId === comment.user_id ? (
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+                          <button
+                            type="button"
+                            onClick={() => onStartEditComment(comment)}
+                            disabled={commentActionBusy}
+                            style={{
+                              border: "1px solid rgba(99,102,241,0.35)",
+                              background: "transparent",
+                              color: "#a5b4fc",
+                              borderRadius: 7,
+                              padding: "5px 9px",
+                              fontSize: 11,
+                              cursor: commentActionBusy ? "not-allowed" : "pointer",
+                              opacity: commentActionBusy ? 0.6 : 1,
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDeleteComment(comment.id)}
+                            disabled={commentActionBusy}
+                            style={{
+                              border: "1px solid rgba(244,63,94,0.35)",
+                              background: "transparent",
+                              color: "#fb7185",
+                              borderRadius: 7,
+                              padding: "5px 9px",
+                              fontSize: 11,
+                              cursor: commentActionBusy ? "not-allowed" : "pointer",
+                              opacity: commentActionBusy ? 0.6 : 1,
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      ) : null}
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
