@@ -37,58 +37,41 @@ Many student musicians lack an accessible platform where new artists can upload 
 
 ## System Architecture Overview
 
-Listenism follows a microservices architecture with clear separation of concerns:
+The architecture is organized into four layers.
 
+1. **Client layer**
+The client layer consists of a React + Next.js web application that communicates with the backend over HTTPS REST.
+
+2. **Gateway layer**
+The gateway layer contains an API Gateway that serves as the single entry point for all requests, handling JWT verification, rate limiting, and routing.
+
+3. **Backend layer**
+The backend layer is a Modular Monolith built with FastAPI, composed of four modules:
+- **Auth** (registration, login, token management)
+- **Music** (uploads, streaming, search, playlists)
+- **Social** (likes, follows, comments)
+- **Recommendation** (personalized suggestions with fallback logic)
+
+4. **Infrastructure layer**
+The infrastructure layer is divided into two parts:
+- A **data layer** consisting of PostgreSQL, Redis, and MinIO for storage and caching
+- A separate **ML service** powered by scikit-learn and APScheduler, which periodically processes listen events in batch to generate recommendations stored back into Redis
+
+This separation ensures the ML workload is fully decoupled from the core backend, allowing independent scaling and graceful degradation if the ML service becomes unavailable.
+
+### 4.3 Module Structure
+
+Each backend module follows a layered architecture internally. Modules communicate only through public service interfaces.
+
+Typical internal structure:
+
+```text
+app/modules/<module>/
+   router.py      # HTTP routes
+   service.py     # Business logic and module public interface
+   repository.py  # Data access
+   schemas.py     # Request/response DTOs
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Frontend (Next.js)                      │
-│              (http://localhost:3000)                         │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-                           │ REST API
-                           │
-        ┌──────────────────┴─────────────────┐
-        │                                    │
-┌───────▼─────────┐              ┌───────────▼──────┐
-│  Backend API    │              │   ML Service     │
-│  (FastAPI)      │              │   (Flask)        │
-│  Port: 8000     │              │   Port: 8001     │
-└───────┬─────────┘              └──────────────────┘
-        │
-        ├────────────────┬──────────────┬─────────────┐
-        │                │              │             │
-┌───────▼────────┐ ┌─────▼─────┐ ┌──────▼────┐ ┌──────▼───┐
-│  PostgreSQL    │ │   Redis   │ │  MinIO    │ │ Alembic  │
-│  Port: 5432    │ │ Port:6379 │ │ Port:9000 │ │ Migrations
-│                │ │           │ │           │ │          │
-│ - Users        │ │ - Cache   │ │ - Audio   │ │- Schema  │
-│ - Songs        │ │ - Sessions│ │ - Images  │ │ Version  │
-│ - Albums       │ │           │ │           │ │          │
-│ - Comments     │ └───────────┘ └───────────┘ └──────────┘
-│ - Likes        │
-│ - Follows      │
-└────────────────┘
-```
-
-### Architecture Components
-
-| Component | Purpose | Technology |
-|-----------|---------|-----------|
-| **Frontend** | User interface and client-side logic | Next.js 16, React, TypeScript, Tailwind CSS |
-| **Backend API** | Core business logic and data management | FastAPI, SQLAlchemy, Python 3.12 |
-| **Database** | Persistent data storage | PostgreSQL 15 |
-| **Cache** | Session and data caching | Redis |
-| **Object Storage** | Audio files and cover images | MinIO (S3-compatible) |
-| **ML Service** | AI-powered recommendations | Flask, scikit-learn, collaborative filtering |
-| **Migrations** | Database schema versioning | Alembic |
-
-### Data Flow
-
-1. **User Authentication**: Users register/login → JWT tokens issued → stored in browser/session
-2. **Music Upload**: Artist uploads song → stored in MinIO → metadata saved to PostgreSQL
-3. **Music Discovery**: User views home → Frontend fetches songs from backend → ML service provides recommendations for authenticated users
-4. **Social Interactions**: Like/comment/follow operations persist to database → real-time updates on UI
-5. **Recommendations**: ML service analyzes user-song interactions → returns personalized recommendations
 
 ---
 
@@ -226,7 +209,7 @@ Docker Compose automatically sets up all services with proper networking and env
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:8000
    - MinIO Console: http://localhost:9001
-   - PostgreSQL: localhost:5432
+   - PostgreSQL: http://localhost:5432
 
 ### Option 2: Local Development Setup
 
@@ -441,146 +424,3 @@ docker compose up
 - **Comments Section** — Users can comment, edit, and delete their own comments
 - **Like Button** — Single-click to like/unlike songs
 - **Follow Button** — Follow/unfollow artists and receive updates
-
----
-
-## Project Structure
-
-```
-listenism/
-├── backend/                    # FastAPI REST API
-│   ├── app/
-│   │   ├── main.py            # FastAPI app setup
-│   │   ├── models/            # SQLAlchemy ORM models
-│   │   ├── modules/           # Domain modules (auth, music, social, recommendation)
-│   │   ├── scripts/           # Setup scripts (seed, bootstrap_admin)
-│   │   ├── infrastructure/    # Database and storage configs
-│   │   └── shared/            # Shared utilities (config, exceptions, logger)
-│   ├── alembic/               # Database migrations
-│   ├── requirements.txt        # Python dependencies
-│   └── Dockerfile             # Backend container image
-│
-├── frontend/                  # Next.js React application
-│   ├── src/
-│   │   ├── app/              # Next.js app directory (pages, layouts)
-│   │   ├── components/       # React components (Navbar, Cards, etc.)
-│   │   ├── services/         # API client services
-│   │   ├── types/            # TypeScript interfaces
-│   │   ├── hooks/            # Custom React hooks
-│   │   └── mockupData/       # Demo data for development
-│   ├── package.json           # Node.js dependencies
-│   ├── tsconfig.json          # TypeScript configuration
-│   ├── tailwind.config.ts     # Tailwind CSS customization
-│   └── Dockerfile             # Frontend container image
-│
-├── ml/                        # Machine Learning service
-│   ├── api/
-│   │   ├── main.py           # Flask app entry point
-│   │   └── router.py         # ML endpoints
-│   ├── models/               # Trained models storage
-│   ├── pipelines/            # ML pipeline scripts
-│   ├── requirements.txt       # Python dependencies
-│   └── Dockerfile            # ML container image
-│
-├── docker-compose.yml         # Multi-container orchestration
-├── README.md                  # This file
-└── docs/                      # Documentation
-    └── specification.md       # Detailed system specification
-```
-
----
-
-## Development Guidelines
-
-### Code Quality
-
-- **Python**: Follow PEP 8 standards, format with Black
-  ```bash
-  black app/ tests/
-  ```
-
-- **TypeScript/JavaScript**: Follow ESLint rules
-  ```bash
-  npm run lint
-  ```
-
-### Testing
-
-- Backend tests (todo):
-  ```bash
-  pytest backend/test/
-  ```
-
-- Frontend tests (todo):
-  ```bash
-  npm test
-  ```
-
-### Git Workflow
-
-1. Create feature branch
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-2. Commit with meaningful messages
-   ```bash
-   git commit -m "feat: add comment editing functionality"
-   ```
-
-3. Push and create Pull Request
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-
----
-
-## Troubleshooting
-
-### Backend won't start
-- Check PostgreSQL is running: `docker compose ps | grep postgres`
-- Check logs: `docker compose logs backend`
-- Verify environment variables in `.env`
-
-### Frontend can't connect to backend
-- Backend should be at `http://backend:8000` inside Docker or `http://localhost:8000` locally
-- Check INTERNAL_API_URL and NEXT_PUBLIC_API_URL environment variables
-
-### File uploads fail
-- Verify MinIO is running: `docker compose ps | grep minio`
-- Check S3 credentials in `.env`
-- Ensure S3_BUCKET exists in MinIO
-
-### Database not migrated
-- Run migrations manually: `docker compose exec backend alembic upgrade head`
-- Check Alembic versions: `docker compose exec backend alembic current`
-
----
-
-## Contributing
-
-We welcome contributions! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes with tests
-4. Submit a Pull Request with description
-
----
-
-## License
-
-This project is licensed under the MIT License — see LICENSE file for details.
-
----
-
-## Support
-
-For questions or issues:
-- Open an issue on GitHub
-- Check the [specification](docs/specification.md) for detailed features
-- Review the [REPORT.md](REPORT.md) for project progress
-
----
-
-**Happy listening! 🎵**
