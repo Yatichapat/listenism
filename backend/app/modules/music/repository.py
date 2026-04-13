@@ -1,4 +1,4 @@
-from sqlalchemy import select, func, desc, delete
+from sqlalchemy import select, func, desc, delete, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -97,6 +97,76 @@ class MusicRepository:
             .limit(limit)
         )
         return list(self.db.scalars(stmt))
+
+    def search_songs(self, query: str, limit: int = 10) -> list[Song]:
+        q = query.strip().lower()
+        if not q:
+            return []
+
+        pattern = f"%{q}%"
+        stmt = (
+            select(Song)
+            .join(User, User.id == Song.artist_id)
+            .outerjoin(Album, Album.id == Song.album_id)
+            .options(joinedload(Song.artist), joinedload(Song.album))
+            .where(
+                or_(
+                    func.lower(Song.title).like(pattern),
+                    func.lower(func.coalesce(Song.genre, "")).like(pattern),
+                    func.lower(User.display_name).like(pattern),
+                    func.lower(User.email).like(pattern),
+                    func.lower(func.coalesce(Album.title, "")).like(pattern),
+                )
+            )
+            .order_by(Song.created_at.desc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt).unique())
+
+    def search_albums(self, query: str, limit: int = 10) -> list[Album]:
+        q = query.strip().lower()
+        if not q:
+            return []
+
+        pattern = f"%{q}%"
+        stmt = (
+            select(Album)
+            .join(User, User.id == Album.artist_id)
+            .options(joinedload(Album.artist))
+            .where(
+                or_(
+                    func.lower(Album.title).like(pattern),
+                    func.lower(User.display_name).like(pattern),
+                    func.lower(User.email).like(pattern),
+                )
+            )
+            .order_by(Album.created_at.desc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt).unique())
+
+    def search_artists(self, query: str, limit: int = 10) -> list[User]:
+        q = query.strip().lower()
+        if not q:
+            return []
+
+        pattern = f"%{q}%"
+        stmt = (
+            select(User)
+            .outerjoin(Follow, Follow.artist_id == User.id)
+            .options(selectinload(User.followers))
+            .where(
+                User.role == UserRole.artist,
+                or_(
+                    func.lower(User.display_name).like(pattern),
+                    func.lower(User.email).like(pattern),
+                ),
+            )
+            .group_by(User.id)
+            .order_by(desc(func.count(Follow.id)), User.created_at.desc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt).unique())
 
     def create_song(
         self,

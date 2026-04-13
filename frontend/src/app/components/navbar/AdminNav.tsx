@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { UserPublic } from "@/services/api/auth";
 import ProfileDropdown from "@/app/components/ProfileDropdown";
+import SearchIconLink from "@/app/components/SearchIconLink";
+import SearchForm from "@/app/components/SearchForm";
 
 interface NavProps {
   user?: UserPublic | null;
@@ -24,6 +26,10 @@ export default function AdminNav({ user }: NavProps) {
         </nav>
       </div>
       <div className="flex items-center space-x-4">
+        <SearchIconLink className="xl:hidden" />
+        <div className="hidden xl:block">
+          <SearchForm compact />
+        </div>
         <ProfileDropdown user={user} />
       </div>
     </div>

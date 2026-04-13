@@ -348,7 +348,7 @@ docker compose down -v
    ```
 
 4. **Login to frontend** at http://localhost:3000
-   - Email: `admin@listenism.edu` (or your ADMIN_EMAIL)
+   - Email: `admin@listenism.com` (or your ADMIN_EMAIL)
    - Password: `admin123` (or your ADMIN_PASSWORD)
 
 ### Local Development Workflow

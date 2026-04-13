@@ -41,7 +41,7 @@ export default function RegisterPage() {
 				onSubmit={handleSubmit}
 				className="bg-white p-8 rounded shadow-md w-full max-w-md"
 			>
-				<h2 className="text-2xl font-bold mb-6 text-center">Create your account</h2>
+				<h2 className="text-2xl text-gray-800 font-bold mb-6 text-center">Create your account</h2>
 				{error && (
 					<p className="mb-4 rounded bg-red-50 px-3 py-2 text-sm text-red-600">
 						{error}
@@ -57,7 +57,7 @@ export default function RegisterPage() {
 						value={displayName}
 						onChange={(e) => setDisplayName(e.target.value)}
 						required
-						className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+						className="text-gray-400 w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
 					/>
 				</div>
 				<div className="mb-4">
@@ -70,7 +70,7 @@ export default function RegisterPage() {
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
 						required
-						className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+						className="text-gray-400 w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
 					/>
 				</div>
 				<div className="mb-4">
@@ -83,7 +83,7 @@ export default function RegisterPage() {
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
 						required
-						className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+						className="text-gray-400 w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
 					/>
 				</div>
 				<div className="mb-6">
@@ -95,7 +95,7 @@ export default function RegisterPage() {
 						value={role}
 						onChange={(e) => setRole(e.target.value)}
 						required
-						className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+						className="text-gray-400 w-full h-10 px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
 					>
 						<option value="listener">Listener</option>
 						<option value="artist">Artist</option>

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { UserPublic } from "@/services/api/auth";
 import ProfileDropdown from "@/app/components/ProfileDropdown";
+import SearchIconLink from "@/app/components/SearchIconLink";
+import SearchForm from "@/app/components/SearchForm";
 
 interface NavProps {
   user?: UserPublic | null;
@@ -23,6 +25,10 @@ export default function ArtistNav({ user }: NavProps) {
         </nav>
       </div>
       <div className="flex items-center space-x-4">
+        <SearchIconLink className="xl:hidden" />
+        <div className="hidden xl:block">
+          <SearchForm compact />
+        </div>
         <Link href="/artist-upload" className="text-sm font-medium px-4 py-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-purple-500/30">
           + Add Song
         </Link>

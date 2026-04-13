@@ -58,6 +58,13 @@ class ArtistListResponse(BaseModel):
 	items: list[ArtistResponse]
 
 
+class SearchResultsResponse(BaseModel):
+	query: str
+	songs: list[SongResponse] = Field(default_factory=list)
+	albums: list[AlbumResponse] = Field(default_factory=list)
+	artists: list[ArtistResponse] = Field(default_factory=list)
+
+
 class SongPlayStat(BaseModel):
 	id: int
 	title: str

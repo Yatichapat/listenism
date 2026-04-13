@@ -20,6 +20,13 @@ type ArtistListResponse = {
   items: Artist[];
 };
 
+type SearchResultsResponse = {
+  query: string;
+  songs: Song[];
+  albums: Album[];
+  artists: Artist[];
+};
+
 export type PlaylistSong = Song & {
   position: number;
 };
@@ -138,6 +145,13 @@ export async function listNewestArtists(limit: number = 10): Promise<Artist[]> {
     method: "GET",
   });
   return response.items;
+}
+
+export async function searchMusic(query: string, limit: number = 10): Promise<SearchResultsResponse> {
+  const encodedQuery = encodeURIComponent(query.trim());
+  return await request<SearchResultsResponse>(`/api/v1/music/search?q=${encodedQuery}&limit=${limit}`, {
+    method: "GET",
+  });
 }
 
 export async function listRecommendedSongs(token: string, limit: number = 10): Promise<Song[]> {

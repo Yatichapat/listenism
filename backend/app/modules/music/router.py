@@ -7,6 +7,7 @@ from app.infrastructure.database import get_db
 from app.modules.music.schemas import (
     SongCreateRequest, SongListResponse, SongResponse,
     AlbumListResponse, AlbumDetailResponse, ArtistListResponse, ActionResponse,
+    SearchResultsResponse,
     ArtistAnalyticsResponse,
     PlaylistAddSongRequest,
     PlaylistCreateRequest,
@@ -149,6 +150,15 @@ def list_hot_artists(limit: int = Query(10), db: Session = Depends(get_db)) -> A
 @router.get("/artists/newest", response_model=ArtistListResponse)
 def list_newest_artists(limit: int = Query(10), db: Session = Depends(get_db)) -> ArtistListResponse:
     return MusicService(db).list_newest_artists(limit)
+
+
+@router.get("/search", response_model=SearchResultsResponse)
+def search_music(
+    q: str = Query(..., min_length=1),
+    limit: int = Query(10, ge=1, le=50),
+    db: Session = Depends(get_db),
+) -> SearchResultsResponse:
+    return MusicService(db).search(query=q, limit=limit)
 
 
 @router.post("/songs", response_model=SongResponse)

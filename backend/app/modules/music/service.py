@@ -12,6 +12,7 @@ from app.modules.music.schemas import (
     SongCreateRequest, SongListResponse, SongResponse,
     AlbumResponse, AlbumDetailResponse, AlbumListResponse,
     ArtistResponse, ArtistListResponse,
+    SearchResultsResponse,
     ArtistAnalyticsResponse, SongPlayStat,
     PlaylistAddSongRequest,
     PlaylistCreateRequest,
@@ -147,6 +148,37 @@ class MusicService:
 
     def list_newest_artists(self, limit: int = 10) -> ArtistListResponse:
         return self._map_artists(self.repo.list_newest_artists(limit))
+
+    def search(self, query: str, limit: int = 10) -> SearchResultsResponse:
+        normalized = query.strip()
+        if not normalized:
+            return SearchResultsResponse(query=normalized)
+
+        songs = self.repo.search_songs(normalized, limit=limit)
+        albums = self.repo.search_albums(normalized, limit=limit)
+        artists = self.repo.search_artists(normalized, limit=limit)
+        return SearchResultsResponse(
+            query=normalized,
+            songs=[self._map_song(song) for song in songs],
+            albums=[
+                AlbumResponse(
+                    id=album.id,
+                    title=album.title,
+                    artist_name=album.artist.display_name if album.artist else "",
+                    cover_url=get_public_file_url(album.cover_url) if album.cover_url else None,
+                )
+                for album in albums
+            ],
+            artists=[
+                ArtistResponse(
+                    id=artist.id,
+                    name=artist.display_name,
+                    followers_count=len(artist.followers) if artist.followers else 0,
+                    avatar_url=None,
+                )
+                for artist in artists
+            ],
+        )
 
     def list_recommended_songs_for_user(self, user_id: int, limit: int = 10) -> SongListResponse:
         return self._map_songs(self.repo.list_recommended_songs_for_user(user_id=user_id, limit=limit))
