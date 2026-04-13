@@ -71,9 +71,14 @@ services:
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       S3_BUCKET: ${MINIO_BUCKET:-listenism-audio}
       ML_SERVICE_URL: http://ml:8001
+      ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-true}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@listenism.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      ADMIN_DISPLAY_NAME: ${ADMIN_DISPLAY_NAME:-Listenism Admin}
+      ADMIN_RESET_PASSWORD: ${ADMIN_RESET_PASSWORD:-false}
     ports:
       - "8000:8000"
-    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+    command: ["sh", "-c", "alembic upgrade head && python -m app.scripts.bootstrap_admin && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
 
   frontend:
     build:
@@ -83,6 +88,9 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      INTERNAL_API_URL: http://backend:8000
     ports:
       - "3000:3000"
     command: ["npm", "run", "start"]

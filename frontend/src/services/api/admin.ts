@@ -1,5 +1,10 @@
 import { requestWithAuth } from "@/services/api/auth";
 
+const API_BASE =
+  typeof window === "undefined"
+    ? process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+    : process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export type AdminUser = {
   id: number;
   email: string;
@@ -34,6 +39,11 @@ type ListResponse<T> = {
   items: T[];
 };
 
+export type SystemHealth = {
+  status: string;
+  env: string;
+};
+
 export async function listAllUsers(token: string): Promise<AdminUser[]> {
   const response = await requestWithAuth<ListResponse<AdminUser>>("/api/v1/auth/users", token, {
     method: "GET",
@@ -55,14 +65,17 @@ export async function listReportedUsers(token: string): Promise<UserReport[]> {
   return response.items;
 }
 
-export async function deleteSongAsAdmin(token: string, songId: number): Promise<void> {
-  await requestWithAuth<void>(`/api/v1/music/songs/admin/${songId}`, token, {
-    method: "DELETE",
+export async function getSystemHealth(token: string): Promise<SystemHealth> {
+  const response = await fetch(`${API_BASE}/health`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   });
-}
 
-export async function deleteUserAsAdmin(token: string, userId: number): Promise<void> {
-  await requestWithAuth<void>(`/api/v1/auth/users/${userId}`, token, {
-    method: "DELETE",
-  });
+  if (!response.ok) {
+    throw new Error(`Failed to load system health (${response.status})`);
+  }
+
+  return (await response.json()) as SystemHealth;
 }

@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { getAccessToken, me } from "@/services/api/auth";
-import { deleteSongAsAdmin, listReportedSongs, type SongReport } from "@/services/api/admin";
+import { listReportedSongs, type SongReport } from "@/services/api/admin";
 
 export default function AdminSongReportsPage() {
   const [items, setItems] = useState<SongReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [deletingSongId, setDeletingSongId] = useState<number | null>(null);
 
   async function loadData() {
     const token = getAccessToken();
@@ -40,24 +39,6 @@ export default function AdminSongReportsPage() {
     void loadData();
   }, []);
 
-  async function onDeleteSong(songId: number) {
-    const token = getAccessToken();
-    if (!token) {
-      setError("Please login as admin.");
-      return;
-    }
-
-    setDeletingSongId(songId);
-    try {
-      await deleteSongAsAdmin(token, songId);
-      setItems((prev) => prev.filter((item) => item.song_id !== songId));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete song.");
-    } finally {
-      setDeletingSongId(null);
-    }
-  }
-
   if (loading) {
     return <main className="mx-auto max-w-6xl p-8 text-sm text-slate-500">Loading reported songs...</main>;
   }
@@ -74,7 +55,6 @@ export default function AdminSongReportsPage() {
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Song</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Reported By</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Reason</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -83,20 +63,11 @@ export default function AdminSongReportsPage() {
                 <td className="px-4 py-3">{item.song_title}</td>
                 <td className="px-4 py-3">{item.reporter_email}</td>
                 <td className="px-4 py-3">{item.reason || "No reason provided"}</td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => void onDeleteSong(item.song_id)}
-                    disabled={deletingSongId === item.song_id}
-                    className="rounded bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
-                  >
-                    {deletingSongId === item.song_id ? "Deleting..." : "Delete Song"}
-                  </button>
-                </td>
               </tr>
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-500">No reported songs.</td>
+                <td colSpan={3} className="px-4 py-6 text-center text-sm text-slate-500">No reported songs.</td>
               </tr>
             )}
           </tbody>

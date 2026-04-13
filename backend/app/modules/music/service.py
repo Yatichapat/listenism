@@ -34,11 +34,6 @@ class MusicService:
         if role != UserRole.artist:
             raise AppException("Only artist accounts can manage uploaded songs", status_code=403)
 
-    def _ensure_admin_role(self, user_id: int) -> None:
-        role = self.db.scalar(select(User.role).where(User.id == user_id, User.is_active.is_(True)))
-        if role != UserRole.admin:
-            raise AppException("Admin access required", status_code=403)
-
     def _ensure_listener_or_artist_role(self, user_id: int) -> None:
         role = self.db.scalar(select(User.role).where(User.id == user_id, User.is_active.is_(True)))
         if role not in (UserRole.listener, UserRole.artist):
@@ -278,13 +273,6 @@ class MusicService:
             raise AppException("Song not found", status_code=404)
         if song.artist_id != artist_id:
             raise AppException("You can only delete your own songs", status_code=403)
-        self._delete_song_and_cleanup_album(song)
-
-    def delete_song_as_admin(self, admin_id: int, song_id: int) -> None:
-        self._ensure_admin_role(admin_id)
-        song = self.repo.get_song_by_id(song_id)
-        if song is None:
-            raise AppException("Song not found", status_code=404)
         self._delete_song_and_cleanup_album(song)
 
     def get_artist_analytics(self, artist_id: int) -> ArtistAnalyticsResponse:

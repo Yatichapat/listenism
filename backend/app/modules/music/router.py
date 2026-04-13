@@ -223,15 +223,6 @@ def delete_my_song(
     MusicService(db).delete_my_song(artist_id=artist_id, song_id=song_id)
 
 
-@router.delete("/songs/admin/{song_id}", status_code=204)
-def delete_song_as_admin(
-    song_id: int,
-    db: Session = Depends(get_db),
-    user_id: int = Depends(current_user_id),
-) -> None:
-    MusicService(db).delete_song_as_admin(admin_id=user_id, song_id=song_id)
-
-
 @router.post("/songs/{song_id}/listen", response_model=ActionResponse)
 def record_song_listen(
     song_id: int,

@@ -49,6 +49,7 @@ def seed():
             {"title": "LoFi Study Sessions", "artist": artists[0], "cover_url": "https://picsum.photos/seed/album1/300/300"},
             {"title": "Midnight Drive", "artist": artists[2], "cover_url": "https://picsum.photos/seed/album2/300/300"},
             {"title": "Unplugged 2024", "artist": artists[3], "cover_url": "https://picsum.photos/seed/album3/300/300"},
+            {"title": "Stadium Fire", "artist": artists[1], "cover_url": "https://picsum.photos/seed/album4/300/300"},
         ]
 
         albums = []
@@ -71,7 +72,7 @@ def seed():
             {"title": "Night Focus", "genre": "Chillhop", "artist": artists[0], "album": albums[0], "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"},
             {"title": "Neon Lights", "genre": "Synthwave", "artist": artists[2], "album": albums[1], "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"},
             {"title": "Acoustic Sunset", "genre": "Acoustic", "artist": artists[3], "album": albums[2], "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3"},
-            {"title": "Rock Anthem", "genre": "Rock", "artist": artists[1], "album": None, "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3"},
+            {"title": "Rock Anthem", "genre": "Rock", "artist": artists[1], "album": albums[3], "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3"},
         ]
 
         # Avoid duplicates by checking title
@@ -91,6 +92,17 @@ def seed():
                 db.refresh(song)
                 songs_to_insert.append(song)
             else:
+                changed = False
+                if not song.file_key:
+                    song.file_key = s_data["url"]
+                    changed = True
+                if not song.album_id and s_data["album"]:
+                    song.album_id = s_data["album"].id
+                    changed = True
+                if changed:
+                    db.add(song)
+                    db.commit()
+                    db.refresh(song)
                 songs_to_insert.append(song)
         
         # Simulate follows for hot artists

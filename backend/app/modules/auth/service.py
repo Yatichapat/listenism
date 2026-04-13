@@ -60,17 +60,6 @@ class AuthService:
         ]
         return UserListResponse(items=items)
 
-    def delete_user(self, admin_id: int, target_user_id: int) -> None:
-        self._ensure_admin_role(admin_id)
-        if admin_id == target_user_id:
-            raise AppException("Admin cannot delete their own account", status_code=400)
-
-        target_user = self.repo.get_by_id(target_user_id)
-        if target_user is None:
-            raise AppException("User not found", status_code=404)
-
-        self.repo.delete_user(target_user)
-
     def register(self, payload: RegisterRequest) -> UserPublic:
         if self.repo.find_by_email(payload.email):
             raise AppException("Email already exists", status_code=409)

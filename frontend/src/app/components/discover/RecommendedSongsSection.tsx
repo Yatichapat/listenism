@@ -10,6 +10,7 @@ import { type Song as SongType } from "@/types/songs";
 export default function RecommendedSongsSection() {
   const [songs, setSongs] = useState<SongType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -17,9 +18,12 @@ export default function RecommendedSongsSection() {
     async function loadRecommendations() {
       const token = getAccessToken();
       if (!token) {
+        setIsAuthenticated(false);
         setLoading(false);
         return;
       }
+
+      setIsAuthenticated(true);
 
       try {
         let recommendedSongs: SongType[] = [];
@@ -55,6 +59,10 @@ export default function RecommendedSongsSection() {
   }, []);
 
   if (loading) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
     return null;
   }
 

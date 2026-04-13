@@ -32,11 +32,11 @@ export default async function AlbumDetailPage({ params }: AlbumDetailPageProps) 
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-24 pt-8 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-4">
           <Link
-            href="/discover"
+            href="/"
             className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-white/10 dark:text-slate-200"
           >
             <span>←</span>
-            Back to Discover
+            Back to Home
           </Link>
         </div>
 

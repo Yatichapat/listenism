@@ -40,12 +40,3 @@ def list_users(
     return AuthService(db).list_users(admin_id=user_id)
 
 
-@router.delete("/users/{target_user_id}", status_code=204)
-def delete_user(
-    target_user_id: int,
-    db: Session = Depends(get_db),
-    user_id: int = Depends(current_user_id),
-) -> None:
-    AuthService(db).delete_user(admin_id=user_id, target_user_id=target_user_id)
-
-

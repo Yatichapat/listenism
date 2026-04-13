@@ -16,6 +16,7 @@ export default function ArtistNav({ user }: NavProps) {
           Listenism Artist
         </Link>
         <nav className="hidden md:flex space-x-6">
+          <Link href="/" className="text-sm font-medium hover:text-blue-500 transition-colors">Home</Link>
           <Link href="/artist-upload" className="text-sm font-medium hover:text-purple-500 transition-colors">My Songs</Link>
           <Link href="/analytics" className="text-sm font-medium hover:text-purple-500 transition-colors">Analytics</Link>
           <Link href="/playlists" className="text-sm font-medium hover:text-purple-500 transition-colors">Library</Link>

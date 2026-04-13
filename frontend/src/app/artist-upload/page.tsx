@@ -268,7 +268,7 @@ const UploadSongPage = () => {
       </div>
 
       {showAddForm && (
-        <form onSubmit={handleSubmit} className="mb-8 space-y-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+        <form onSubmit={handleSubmit} className="mb-8 space-y-4 rounded-lg border border-gray-200 p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Upload Song</h2>
           <div>
             <label className="mb-1 block font-medium">Upload Type</label>
@@ -421,111 +421,111 @@ const UploadSongPage = () => {
       {error && <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-red-600">{error}</div>}
       {success && <div className="mb-4 rounded border border-green-200 bg-green-50 p-3 text-green-700">{successMessage || "Upload successful!"}</div>}
 
-        {songsLoading && <p className="text-sm text-gray-500">Loading your songs...</p>}
-        {!songsLoading && mySongs.length === 0 && (
-          <p className="text-sm text-gray-500">No songs uploaded yet. Click Add Song to upload your first track.</p>
-        )}
-        {!songsLoading && mySongs.length > 0 && (
-          <ul className="space-y-3">
-            {mySongs.map((song) => (
-              <li key={song.id} className="rounded border border-gray-200 p-3">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex items-center gap-3">
-                    {song.cover_url ? (
-                      <img src={song.cover_url} alt={song.title} className="h-14 w-14 rounded object-cover" />
-                    ) : (
-                      <div className="flex h-14 w-14 items-center justify-center rounded bg-gray-100 text-xs text-gray-400">
-                        No cover
-                      </div>
-                    )}
-                    <div>
-                      <p className="font-medium">{song.title}</p>
-                      <p className="text-xs text-gray-500">{song.genre || "Unknown genre"}</p>
+      {songsLoading && <p className="text-sm text-gray-500">Loading your songs...</p>}
+      {!songsLoading && mySongs.length === 0 && (
+        <p className="text-sm text-gray-500">No songs uploaded yet. Click Add Song to upload your first track.</p>
+      )}
+      {!songsLoading && mySongs.length > 0 && (
+        <ul className="space-y-3">
+          {mySongs.map((song) => (
+            <li key={song.id} className="rounded border border-gray-200 p-3">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex items-center gap-3">
+                  {song.cover_url ? (
+                    <img src={song.cover_url} alt={song.title} className="h-14 w-14 rounded object-cover" />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded bg-gray-100 text-xs text-gray-400">
+                      No cover
                     </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    {song.audio_url ? (
-                      <audio controls preload="none" className="h-8 w-64 max-w-full">
-                        <source src={song.audio_url} />
-                      </audio>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={() => startEditSong(song)}
-                      className="rounded border border-blue-200 px-3 py-1 text-sm text-blue-400 hover:bg-blue-50"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteSong(song.id)}
-                      className="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700 disabled:opacity-50"
-                      disabled={deletingSongId === song.id}
-                    >
-                      {deletingSongId === song.id ? "Deleting..." : "Delete"}
-                    </button>
+                  )}
+                  <div>
+                    <p className="font-medium">{song.title}</p>
+                    <p className="text-xs text-gray-500">{song.genre || "Unknown genre"}</p>
                   </div>
                 </div>
 
-                {editingSongId === song.id && (
-                  <div className="mt-4 rounded border border-blue-100 bg-blue-50/40 p-4">
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <div>
-                        <label className="mb-1 block text-sm font-medium">Title</label>
-                        <input
-                          type="text"
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          className="w-full rounded border px-3 py-2"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-sm font-medium">Genre</label>
-                        <select
-                          value={editGenre}
-                          onChange={(e) => setEditGenre(e.target.value)}
-                          className="w-full rounded border px-3 py-2"
-                        >
-                          <option value="" disabled>Select genre</option>
-                          {GENRES.map((g) => (
-                            <option key={g} value={g}>{g}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-sm font-medium">New Cover</label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => setEditCover(e.target.files?.[0] || null)}
-                          className="w-full"
-                        />
-                      </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  {song.audio_url ? (
+                    <audio controls preload="none" className="h-8 w-64 max-w-full">
+                      <source src={song.audio_url} />
+                    </audio>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => startEditSong(song)}
+                    className="rounded border border-blue-200 px-3 py-1 text-sm text-blue-400 hover:bg-blue-50"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteSong(song.id)}
+                    className="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+                    disabled={deletingSongId === song.id}
+                  >
+                    {deletingSongId === song.id ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
+              </div>
+
+              {editingSongId === song.id && (
+                <div className="mt-4 rounded border border-blue-100 bg-blue-50/40 p-4">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">Title</label>
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        className="w-full rounded border px-3 py-2"
+                      />
                     </div>
-                    <div className="mt-4 flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => void handleUpdateSong(song.id)}
-                        className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
-                        disabled={savingSongId === song.id}
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">Genre</label>
+                      <select
+                        value={editGenre}
+                        onChange={(e) => setEditGenre(e.target.value)}
+                        className="w-full rounded border px-3 py-2"
                       >
-                        {savingSongId === song.id ? "Saving..." : "Save Changes"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelEdit}
-                        className="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
+                        <option value="" disabled>Select genre</option>
+                        {GENRES.map((g) => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">New Cover</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setEditCover(e.target.files?.[0] || null)}
+                        className="w-full"
+                      />
                     </div>
                   </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+                  <div className="mt-4 flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => void handleUpdateSong(song.id)}
+                      className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+                      disabled={savingSongId === song.id}
+                    >
+                      {savingSongId === song.id ? "Saving..." : "Save Changes"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      className="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 };

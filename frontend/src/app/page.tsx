@@ -1,6 +1,7 @@
 import SectionLayout from "@/app/components/discover/SectionLayout";
 import AlbumCard from "@/app/components/discover/AlbumCard";
 import ArtistCard from "@/app/components/discover/ArtistCard";
+import RecommendedSongsSection from "@/app/components/discover/RecommendedSongsSection";
 import SongList from "@/app/components/SongList";
 import {
   listNewestAlbums,
@@ -61,6 +62,8 @@ export default async function Home() {
             Failed to load the latest datasets from the backend. Make sure the API is running and the database is seeded.
           </div>
         )}
+
+        <RecommendedSongsSection />
 
         {newestAlbums.length > 0 && (
           <SectionLayout title="Newest Albums" subtitle="Freshly dropped records just for you">

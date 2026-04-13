@@ -17,7 +17,7 @@ export default function StudentNav({ user }: NavProps) {
           Listenism
         </Link>
         <nav className="hidden md:flex space-x-6">
-          <Link href="/discover" className="text-sm font-medium hover:text-blue-500 transition-colors">Discover</Link>
+          <Link href="/" className="text-sm font-medium hover:text-blue-500 transition-colors">Home</Link>
           <Link href="/playlists" className="text-sm font-medium hover:text-blue-500 transition-colors">Library</Link>
         </nav>
       </div>
