@@ -172,222 +172,61 @@ Platform administrators managing the ecosystem.
 
 ### Prerequisites
 
-Before you begin, ensure you have the following installed:
-
 - **Docker & Docker Compose** — Container orchestration
   - [Install Docker Desktop](https://www.docker.com/products/docker-desktop)
-  - Includes both Docker and Docker Compose
-
+  - Includes Docker Compose
 - **Git** — Version control
-  ```bash
-  git clone https://github.com/yourusername/listenism.git
-  cd listenism
-  ```
 
-### Option 1: Docker Setup
+### Docker Setup
 
-Docker Compose automatically sets up all services with proper networking and environment variables.
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/listenism.git
-   cd listenism
-   ```
-
-2. **Verify docker-compose.yml**
-   Ensure all services are configured:
-   ```bash
-   docker compose config
-   ```
-
-3. **Build and start services**
-   ```bash
-   docker compose up --build
-   ```
-
-4. **Wait for services to be ready**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8000
-   - MinIO Console: http://localhost:9001
-   - PostgreSQL: http://localhost:5432
-
-### Option 2: Local Development Setup
-
-**Backend Setup:**
 ```bash
-# Navigate to backend directory
+git clone https://github.com/yourusername/listenism.git
+cd listenism
+docker compose up --build
+```
+
+### Local Setup
+
+Backend:
+
+```bash
 cd backend
-
-# Create and activate virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
+source .venv/bin/activate
 pip install -r requirements.txt
-
-# Create .env file (copy from .env.example if available)
-cp .env.example .env  # Configure database, S3, etc.
-
-# Run database migrations
 alembic upgrade head
-
-# Bootstrap admin account
 python -m app.scripts.bootstrap_admin
-
-# Start backend server
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-**Frontend Setup:**
+Frontend:
+
 ```bash
-# In new terminal, navigate to frontend
 cd frontend
-
-# Install dependencies
 npm install
-
-# Create .env.local file
-echo "NEXT_PUBLIC_API_URL=http://localhost:8000" > .env.local
-echo "INTERNAL_API_URL=http://localhost:8000" >> .env.local
-
-# Start development server
 npm run dev
 ```
 
-**ML Service Setup:**
-```bash
-# In new terminal, navigate to ML directory
-cd ml
+Environment variables are loaded from `.env` at the project root. At minimum, set `DATABASE_URL`, `SECRET_KEY`, `S3_*`, and `ML_SERVICE_URL` for local runs.
 
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate
+### Optional: Seed Demo Data
 
-# Install dependencies
-pip install -r requirements.txt
+Use these commands if you want sample users, songs, albums, and social activity in the database.
 
-# Start Flask server
-python api/main.py
-```
-
-### Environment Variables
-
-Create a `.env` file in the project root:
-
-```env
-# Database
-DATABASE_URL=postgresql://listenism:listenism_password@localhost:5432/listenism_db
-
-# JWT
-SECRET_KEY=your-secret-key-here-change-in-production
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-REFRESH_TOKEN_EXPIRE_DAYS=30
-
-# MinIO/S3
-S3_ENDPOINT_URL=http://localhost:9000
-S3_PUBLIC_ENDPOINT_URL=http://localhost:9000
-S3_ACCESS_KEY=minioadmin
-S3_SECRET_KEY=minioadmin
-S3_BUCKET=listenism-audio
-
-# ML Service
-ML_SERVICE_URL=http://localhost:8001
-
-# Redis
-REDIS_URL=redis://localhost:6379/0
-
-# Admin Bootstrap (Docker only)
-ADMIN_EMAIL=admin@listenism.edu
-ADMIN_PASSWORD=admin123
-ADMIN_DISPLAY_NAME=System Admin
-ADMIN_BOOTSTRAP_ENABLED=true
-```
-
----
-
-## How to Run the System
-
-### Using Docker Compose
+Docker:
 
 ```bash
-# Start all services in the background
-docker compose up -d
-
-# View logs
-docker compose logs -f
-
-# Stop all services
-docker compose down
-
-# Stop and remove all data (clean slate)
-docker compose down -v
+docker compose exec backend python -m app.scripts.seed
+docker compose exec backend python scripts/seed_discover.py
 ```
 
-### Accessing the Application
-
-| Service | URL | Notes |
-|---------|-----|-------|
-| **Frontend** | http://localhost:3000 | Next.js app, start here |
-| **Backend API** | http://localhost:8000 | FastAPI docs at /docs |
-| **MinIO Console** | http://localhost:9001 | S3 storage management |
-| **Database** | localhost:5432 | PostgreSQL (psql CLI) |
-
-### First Time Setup in Docker
-
-1. **Wait for backend to be ready** (check logs for "Uvicorn running on")
-
-2. **Create admin account** (automatically done if env vars set):
-   ```bash
-   docker compose exec backend python -m app.scripts.bootstrap_admin
-   ```
-
-3. **Seed demo data**:
-   ```bash
-   docker compose exec backend python -m app.scripts.seed
-   ```
-
-4. **Login to frontend** at http://localhost:3000
-   - Email: `admin@listenism.com` (or your ADMIN_EMAIL)
-   - Password: `admin123` (or your ADMIN_PASSWORD)
-
-### Local Development Workflow
+Local:
 
 ```bash
-# Terminal 1: Backend
 cd backend
 source .venv/bin/activate
-uvicorn app.main:app --reload
-
-# Terminal 2: Frontend
-cd frontend
-npm run dev
-
-# Terminal 3: ML Service
-cd ml
-source venv/bin/activate
-python api/main.py
-```
-
-### Database Management
-
-**Connect to PostgreSQL directly**:
-```bash
-psql -h localhost -p 5432 -U listenism -d listenism_db
-```
-
-**Run migrations**:
-```bash
-cd backend
-alembic upgrade head  # Apply all migrations
-alembic downgrade -1  # Rollback one migration
-alembic current       # Show current version
-```
-
-**Reset database** (caution: deletes all data):
-```bash
-docker compose down -v
-docker compose up
+python -m app.scripts.seed
+python scripts/seed_discover.py
 ```
 
 ---
