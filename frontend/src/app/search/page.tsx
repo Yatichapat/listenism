@@ -2,6 +2,9 @@ import AlbumCard from "@/app/components/discover/AlbumCard";
 import ArtistCard from "@/app/components/discover/ArtistCard";
 import SongList from "@/app/components/SongList";
 import { searchMusic } from "@/services/api/music";
+import { type Album } from "@/types/album";
+import { type Artist } from "@/types/artist";
+import { type Song } from "@/types/songs";
 import SearchInputUI from "./SearchInputUI";
 
 type SearchPageProps = {
@@ -12,9 +15,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const query = typeof resolvedSearchParams.q === "string" ? resolvedSearchParams.q.trim() : "";
 
-  let songs = [];
-  let albums = [];
-  let artists = [];
+  let songs: Song[] = [];
+  let albums: Album[] = [];
+  let artists: Artist[] = [];
   let error: string | null = null;
 
   if (query) {
@@ -58,8 +61,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             {songs.length > 0 && (
               <section>
                 <h2 className="mb-6 text-2xl font-bold tracking-tight text-white">Songs</h2>
-                <div className="rounded-xl border border-white/5 bg-white/5 p-2">
-                  <SongList songs={songs} />
+                <div className="rounded-xl border border-white/5 bg-white/5 p-4">
+                  <div className="grid grid-cols-2 gap-4 justify-items-center sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                    <SongList songs={songs} />
+                  </div>
                 </div>
               </section>
             )}
