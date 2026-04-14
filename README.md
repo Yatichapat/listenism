@@ -397,30 +397,40 @@ docker compose up
 ### Authentication Flow
 - **Login Page** — Email/password authentication with role selection during signup
 - **Registration Page** — Create account with listener/artist role choice
+<img width="1352" height="753" alt="ภาพถ่ายหน้าจอ 2569-04-13 เวลา 21 21 25" src="https://github.com/user-attachments/assets/99d682e8-3c50-4a9b-a313-4da3489a177f" />
+<img width="1351" height="755" alt="ภาพถ่ายหน้าจอ 2569-04-13 เวลา 21 25 40" src="https://github.com/user-attachments/assets/ce703bac-720f-44bd-829a-d921808a3aef" />
 
 ### Home Page
 - **Trending Section** — Recently uploaded songs
 - **AI Recommendations** — Personalized song recommendations (authenticated users only)
 - **Top Artists** — Most followed artists
 - **Hot Songs** — Most liked/commented songs
-
-### Music Discovery
-- **Browse Albums** — Grid view of all albums with cover art
-- **Song Details** — Full song info, comments, and social interactions
-- **Artist Profile** — Artist bio, follower count, all their songs/albums
+<img width="1352" height="794" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 15 05" src="https://github.com/user-attachments/assets/339acd6b-e09a-4e58-a33e-51b681c99423" />
+<img width="1351" height="795" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 14 57" src="https://github.com/user-attachments/assets/3c776b1a-8375-42d2-a417-6148fc695911" />
+<img width="1352" height="795" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 14 48" src="https://github.com/user-attachments/assets/f944ab49-447b-4f35-880d-f97715fdd053" />
 
 ### Artist Features
 - **Upload Song** — Form to upload audio file, title, description, album selection
 - **Manage Albums** — Create albums, set cover images
 - **Song Settings** — Edit song metadata, delete songs, view upload history
+<img width="1352" height="795" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 16 30" src="https://github.com/user-attachments/assets/252b9d87-5b0b-43a4-8ba9-8728f212804e" />
+<img width="1345" height="794" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 16 22" src="https://github.com/user-attachments/assets/5c90aff9-f913-499b-bdfa-86bcdd07d551" />
+<img width="1352" height="793" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 16 11" src="https://github.com/user-attachments/assets/af0dfde0-524f-4f8a-ba27-e56770c535f0" />
 
 ### Admin Dashboard
 - **User Management** — View/manage user accounts and roles
 - **Content Moderation** — Review flagged songs and reports
-- **Analytics** — Platform statistics (total users, songs, plays)
-- **System Health** — Backend health check, service status
+- **Analytics** — Platform statistics (total users, songs, plays)<img width="1352" height="797" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 24 41" src="https://github.com/user-attachments/assets/d4c4a4d6-3bc0-423d-a19a-469b3b5c8daa" />
+<img width="1350" height="794" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 24 23" src="https://github.com/user-attachments/assets/cdb40d28-0b15-4eb5-8b31-a6c9db9659d0" />
+<img width="1352" height="794" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 24 11" src="https://github.com/user-attachments/assets/201ee313-f7aa-4577-8c28-f3a8adf3864d" />
+<img width="1352" height="796" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 23 36" src="https://github.com/user-attachments/assets/b94ad537-444b-4f7e-b7c0-e97e4b81213a" />
 
 ### Social Features
 - **Comments Section** — Users can comment, edit, and delete their own comments
-- **Like Button** — Single-click to like/unlike songs
-- **Follow Button** — Follow/unfollow artists and receive updates
+- **Like Button** — Single-click to like/unlike songs and it will save in their liked songs
+- **Save Button** - Click to save/unsave songs and it will save in their playlists
+<img width="1352" height="792" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 25 03" src="https://github.com/user-attachments/assets/5395e7ce-cc69-405b-b67f-2ce17edd0aa1" />
+<img width="1346" height="791" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 27 28" src="https://github.com/user-attachments/assets/90425f7c-c45d-4807-9805-32da625dda79" />
+<img width="1349" height="792" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 29 29" src="https://github.com/user-attachments/assets/3d9523bf-d250-4257-9e73-337b015729bd" />
+
+
