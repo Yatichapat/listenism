@@ -12,6 +12,7 @@ Listenism is a web-based music platform designed to support emerging university 
 - [Technology Stack](#technology-stack)
 - [Installation & Setup](#installation--setup)
 - [How to Run the System](#how-to-run-the-system)
+- [Optional: Seed Demo Data](#optional-seed-demo-data)
 - [Screenshots](#screenshots)
 
 ---
@@ -36,29 +37,26 @@ Many student musicians lack an accessible platform where new artists can upload 
 
 ## System Architecture Overview
 
-The architecture is organized into four layers.
+The architecture is organized into three service layers.
 
 1. **Client layer**
-The client layer consists of a React + Next.js web application that communicates with the backend over HTTPS REST.
+The client layer consists of a React + Next.js web application that communicates with the backend over HTTP REST.
 
-2. **Gateway layer**
-The gateway layer contains an API Gateway that serves as the single entry point for all requests, handling JWT verification, rate limiting, and routing.
-
-3. **Backend layer**
+2. **Backend API layer**
 The backend layer is a Modular Monolith built with FastAPI, composed of four modules:
 - **Auth** (registration, login, token management)
 - **Music** (uploads, streaming, search, playlists)
 - **Social** (likes, follows, comments)
 - **Recommendation** (personalized suggestions with fallback logic)
 
-4. **Infrastructure layer**
+3. **Data + ML layer**
 The infrastructure layer is divided into two parts:
 - A **data layer** consisting of PostgreSQL, Redis, and MinIO for storage and caching
-- A separate **ML service** powered by scikit-learn and APScheduler, which periodically processes listen events in batch to generate recommendations stored back into Redis
+- A separate **ML service** (FastAPI + scikit-learn + APScheduler), which periodically processes listen events in batch to generate recommendation artifacts
 
 This separation ensures the ML workload is fully decoupled from the core backend, allowing independent scaling and graceful degradation if the ML service becomes unavailable.
 
-### 4.3 Module Structure
+### Module Structure
 
 Each backend module follows a layered architecture internally. Modules communicate only through public service interfaces.
 
@@ -130,10 +128,10 @@ Platform administrators managing the ecosystem.
 ## Technology Stack
 
 ### Frontend
-- **Framework**: Next.js 16 (React 18)
+- **Framework**: Next.js 16 (React 19)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS with PostCSS
-- **HTTP Client**: Fetch API (with server/client-side URL differentiation)
+- **HTTP Client**: Axios + Fetch API
 - **State Management**: React hooks (useState, useEffect)
 - **Form Handling**: Native HTML forms with React
 
@@ -149,10 +147,11 @@ Platform administrators managing the ecosystem.
 - **Environment**: python-dotenv
 
 ### Machine Learning
-- **Framework**: Flask
+- **Framework**: FastAPI
 - **Algorithm**: Collaborative Filtering (scikit-learn NearestNeighbors)
 - **Model Storage**: Pickle (.pkl files)
-- **Data Processing**: NumPy, Pandas (generated demo data)
+- **Data Processing**: NumPy, Pandas
+- **Scheduling**: APScheduler
 
 ### Infrastructure
 - **Containerization**: Docker & Docker Compose
@@ -174,6 +173,7 @@ Platform administrators managing the ecosystem.
 - **Docker & Docker Compose** — Container orchestration
   - [Install Docker Desktop](https://www.docker.com/products/docker-desktop)
   - Includes Docker Compose
+- **Python 3.12+** and **Node.js 20+** — Required for local development
 - **Git** — Version control
 
 ### Docker Setup
@@ -181,6 +181,7 @@ Platform administrators managing the ecosystem.
 ```bash
 git clone https://github.com/yourusername/listenism.git
 cd listenism
+cp .env.example .env
 docker compose up --build
 ```
 
@@ -189,13 +190,22 @@ docker compose up --build
 Backend:
 
 ```bash
-cd backend
 python -m venv .venv
 source .venv/bin/activate
+cd backend
 pip install -r requirements.txt
 alembic upgrade head
 python -m app.scripts.bootstrap_admin
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+ML service (new terminal, same repo root virtual environment):
+
+```bash
+source .venv/bin/activate
+cd ml
+pip install -r requirements.txt
+uvicorn api.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 Frontend:
@@ -208,7 +218,31 @@ npm run dev
 
 Environment variables are loaded from `.env` at the project root. At minimum, set `DATABASE_URL`, `SECRET_KEY`, `S3_*`, and `ML_SERVICE_URL` for local runs.
 
-### Optional: Seed Demo Data
+## How to Run the System
+
+### Docker (recommended)
+
+```bash
+docker compose up --build
+```
+
+Open these services:
+
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8000`
+- Backend docs: `http://localhost:8000/docs`
+- ML service: `http://localhost:8001`
+- MinIO console: `http://localhost:9001`
+
+### Local development (without Docker)
+
+Run all three services in separate terminals:
+
+1. Backend API on port `8000`
+2. ML service on port `8001`
+3. Frontend on port `3000`
+
+## Optional: Seed Demo Data
 
 Use these commands if you want sample users, songs, albums, and social activity in the database.
 
@@ -243,9 +277,9 @@ python scripts/seed_discover.py
 - **AI Recommendations** — Personalized song recommendations (authenticated users only)
 - **Top Artists** — Most followed artists
 - **Hot Songs** — Most liked/commented songs
-<img width="1352" height="794" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 15 05" src="https://github.com/user-attachments/assets/339acd6b-e09a-4e58-a33e-51b681c99423" />
-<img width="1351" height="795" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 14 57" src="https://github.com/user-attachments/assets/3c776b1a-8375-42d2-a417-6148fc695911" />
 <img width="1352" height="795" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 14 48" src="https://github.com/user-attachments/assets/f944ab49-447b-4f35-880d-f97715fdd053" />
+<img width="1351" height="795" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 14 57" src="https://github.com/user-attachments/assets/3c776b1a-8375-42d2-a417-6148fc695911" />
+<img width="1352" height="794" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 15 05" src="https://github.com/user-attachments/assets/339acd6b-e09a-4e58-a33e-51b681c99423" />
 
 ### Artist Features
 - **Upload Song** — Form to upload audio file, title, description, album selection
@@ -258,7 +292,8 @@ python scripts/seed_discover.py
 ### Admin Dashboard
 - **User Management** — View/manage user accounts and roles
 - **Content Moderation** — Review flagged songs and reports
-- **Analytics** — Platform statistics (total users, songs, plays)<img width="1352" height="797" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 24 41" src="https://github.com/user-attachments/assets/d4c4a4d6-3bc0-423d-a19a-469b3b5c8daa" />
+- **Analytics** — Platform statistics (total users, songs, plays)
+<img width="1352" height="797" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 24 41" src="https://github.com/user-attachments/assets/d4c4a4d6-3bc0-423d-a19a-469b3b5c8daa" />
 <img width="1350" height="794" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 24 23" src="https://github.com/user-attachments/assets/cdb40d28-0b15-4eb5-8b31-a6c9db9659d0" />
 <img width="1352" height="794" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 24 11" src="https://github.com/user-attachments/assets/201ee313-f7aa-4577-8c28-f3a8adf3864d" />
 <img width="1352" height="796" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 23 36" src="https://github.com/user-attachments/assets/b94ad537-444b-4f7e-b7c0-e97e4b81213a" />
@@ -266,7 +301,7 @@ python scripts/seed_discover.py
 ### Social Features
 - **Comments Section** — Users can comment, edit, and delete their own comments
 - **Like Button** — Single-click to like/unlike songs and it will save in their liked songs
-- **Save Button** - Click to save/unsave songs and it will save in their playlists
+- **Save Button** — Click to save/unsave songs and it will save in their playlists
 <img width="1352" height="792" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 25 03" src="https://github.com/user-attachments/assets/5395e7ce-cc69-405b-b67f-2ce17edd0aa1" />
 <img width="1346" height="791" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 27 28" src="https://github.com/user-attachments/assets/90425f7c-c45d-4807-9805-32da625dda79" />
 <img width="1349" height="792" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 29 29" src="https://github.com/user-attachments/assets/3d9523bf-d250-4257-9e73-337b015729bd" />
