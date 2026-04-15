@@ -31,7 +31,6 @@ Many student musicians lack an accessible platform where new artists can upload 
 - **Social Features** — Follow artists, like songs, and comment on tracks
 - **Album Management** — Organize songs into albums with cover images
 - **Authentication** — Secure JWT-based authentication with role-based access
-- **Responsive UI** — Modern web interface with Next.js and Tailwind CSS
 
 ---
 
