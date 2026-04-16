@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { login, setAuthTokens } from "@/services/api/auth";
+import { login, me, setAuthTokens } from "@/services/api/auth";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -20,9 +20,11 @@ function LoginForm() {
     try {
       const result = await login({ email, password });
       setAuthTokens(result.access_token, result.refresh_token);
+      await me(result.access_token);
       const redirect = searchParams.get("redirect");
       const safeRedirect = redirect && redirect.startsWith("/") ? redirect : "/";
-      router.push(safeRedirect);
+      router.replace(safeRedirect);
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

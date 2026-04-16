@@ -1,8 +1,12 @@
 # Listenism API Reference
 
-Base URL: `/api/v1`
+Base URL: `http://localhost:8080/api/v1` in Docker, or `/api/v1` when called behind the gateway.
 
 This reference covers the backend HTTP API exposed by the FastAPI app. Most protected endpoints require a bearer access token in the `Authorization` header.
+
+When requests go through the Nginx gateway, protected routes are also rejected early with `401 Unauthorized` if the `Authorization` header is missing or not in `Bearer <token>` format. JWT validity and role authorization are still enforced by the backend.
+
+Uploaded audio and cover assets are exposed through the gateway under `http://localhost:8080/storage/<bucket>/<object-key>` in Docker.
 
 ```http
 Authorization: Bearer <access_token>

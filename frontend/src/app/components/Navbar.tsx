@@ -5,7 +5,7 @@ import UnloginNav from "./navbar/UnloginNav";
 import StudentNav from "./navbar/StudentNav";
 import ArtistNav from "./navbar/ArtistNav";
 import AdminNav from "./navbar/AdminNav";
-import { AUTH_CHANGED_EVENT, clearAccessToken, getAccessToken, me, type UserPublic } from "@/services/api/auth";
+import { AUTH_CHANGED_EVENT, clearAccessToken, getAccessToken, getCurrentUser, isAuthError, me, type UserPublic } from "@/services/api/auth";
 
 export type UserRole = "unauthenticated" | "student" | "artist" | "admin";
 
@@ -19,6 +19,19 @@ export default function Navbar({ role = "unauthenticated" }: NavbarProps) {
   const [isLoading, setIsLoading] = useState<boolean>(role !== "unauthenticated");
 
   useEffect(() => {
+    function getRoleForUser(user: UserPublic | null): UserRole {
+      if (!user) {
+        return "unauthenticated";
+      }
+      if (user.role === "artist") {
+        return "artist";
+      }
+      if (user.role === "admin") {
+        return "admin";
+      }
+      return "student";
+    }
+
     async function loadUser() {
       setIsLoading(true);
       const token = getAccessToken();
@@ -28,21 +41,26 @@ export default function Navbar({ role = "unauthenticated" }: NavbarProps) {
         setIsLoading(false);
         return;
       }
+
+      const cachedUser = getCurrentUser();
+      if (cachedUser) {
+        setCurrentUser(cachedUser);
+        setCurrentRole(getRoleForUser(cachedUser));
+      }
+
       try {
         const user = await me(token);
         setCurrentUser(user);
-        // Normalize backend role: "listener" maps to "student", keep others as-is
-        let normalizedRole: UserRole = "student";
-        if (user.role === "artist") {
-          normalizedRole = "artist";
-        } else if (user.role === "admin") {
-          normalizedRole = "admin";
+        setCurrentRole(getRoleForUser(user));
+      } catch (error) {
+        if (isAuthError(error)) {
+          clearAccessToken();
+          setCurrentUser(null);
+          setCurrentRole("unauthenticated");
+        } else if (cachedUser) {
+          setCurrentUser(cachedUser);
+          setCurrentRole(getRoleForUser(cachedUser));
         }
-        setCurrentRole(normalizedRole);
-      } catch {
-        clearAccessToken();
-        setCurrentUser(null);
-        setCurrentRole("unauthenticated");
       } finally {
         setIsLoading(false);
       }

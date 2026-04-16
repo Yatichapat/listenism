@@ -157,7 +157,7 @@ Platform administrators managing the ecosystem.
 - **Containerization**: Docker & Docker Compose
 - **Object Storage**: MinIO (S3-compatible)
 - **Caching**: Redis
-- **Reverse Proxy**: None (direct service access)
+- **API Gateway / Reverse Proxy**: Nginx
 
 ### Development Tools
 - **Code Style**: Black (Python), ESLint (JavaScript/TypeScript)
@@ -226,13 +226,20 @@ Environment variables are loaded from `.env` at the project root. At minimum, se
 docker compose up --build
 ```
 
-Open these services:
+Public entrypoints:
 
 - Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:8000`
-- Backend docs: `http://localhost:8000/docs`
-- ML service: `http://localhost:8001`
-- MinIO console: `http://localhost:9001`
+- API Gateway: `http://localhost:8080`
+- Backend docs via gateway: `http://localhost:8080/docs`
+- Public media via gateway: `http://localhost:8080/storage/<bucket>/<object-key>`
+
+Internal-only containers in Docker:
+
+- `backend`
+- `ml`
+- `postgres`
+- `redis`
+- `minio`
 
 ### Local development (without Docker)
 
@@ -305,5 +312,3 @@ python scripts/seed_discover.py
 <img width="1352" height="792" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 25 03" src="https://github.com/user-attachments/assets/5395e7ce-cc69-405b-b67f-2ce17edd0aa1" />
 <img width="1346" height="791" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 27 28" src="https://github.com/user-attachments/assets/90425f7c-c45d-4807-9805-32da625dda79" />
 <img width="1349" height="792" alt="ภาพถ่ายหน้าจอ 2569-04-14 เวลา 10 29 29" src="https://github.com/user-attachments/assets/3d9523bf-d250-4257-9e73-337b015729bd" />
-
-
